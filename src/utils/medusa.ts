@@ -3,7 +3,11 @@ import {
   CalculatedPriceResult,
   CartResult,
   MoneyResult,
+  OrderResult,
+  PaymentCollectionResult,
   ProductResult,
+  RegionResult,
+  ShippingOptionResult,
 } from "./schemas";
 import { config } from "./config";
 
@@ -14,8 +18,10 @@ const PRODUCT_FIELDS =
   "*variants.calculated_price,+variants.inventory_quantity,+variants.allow_backorder,+variants.manage_inventory,*variants.options,+options,+images";
 
 // Cart line items don't include per-item totals by default, only the unit
-// price — request them explicitly.
-const CART_FIELDS = "+items.total,+items.subtotal";
+// price — request them explicitly. Shipping methods default to amount/option
+// id only, so the checkout's shipping step also needs the method's name.
+const CART_FIELDS =
+  "+items.total,+items.subtotal,+shipping_methods.id,+shipping_methods.name";
 
 const buildUrl = (path: string, params: Record<string, unknown> = {}) => {
   const url = new URL(path, config.medusaBackendUrl);
@@ -28,6 +34,20 @@ const buildUrl = (path: string, params: Record<string, unknown> = {}) => {
   return url.toString();
 };
 
+// Medusa error responses are JSON (`{ message, type, ... }`). Fall back to
+// the raw body for non-JSON errors (e.g. an upstream proxy/502 page) so
+// callers always get a readable, user-facing message.
+const extractErrorMessage = async (response: Response) => {
+  const responseBody = await response.text();
+
+  try {
+    const parsed = JSON.parse(responseBody);
+    return parsed?.message || responseBody || response.statusText;
+  } catch {
+    return responseBody || response.statusText;
+  }
+};
+
 // Make a request to Medusa's Store REST API, adding the publishable API key
 // header required on every /store/* request.
 const medusaFetch = async <T>(
@@ -36,7 +56,7 @@ const medusaFetch = async <T>(
     method?: "GET" | "POST" | "DELETE";
     params?: Record<string, unknown>;
     body?: Record<string, unknown>;
-  } = {}
+  } = {},
 ): Promise<T> => {
   const { method = "GET", params, body } = options;
 
@@ -50,8 +70,7 @@ const medusaFetch = async <T>(
   });
 
   if (!response.ok) {
-    const responseBody = await response.text();
-    throw new Error(`${response.status} ${responseBody}`);
+    throw new Error(await extractErrorMessage(response));
   }
 
   return response.json();
@@ -118,7 +137,7 @@ export const getProductRecommendations = async (options: {
 
   const ProductsResult = z.array(ProductResult);
   const parsedProducts = ProductsResult.parse(data.products).filter(
-    (product) => product?.id !== productId
+    (product) => product?.id !== productId,
   );
 
   return parsedProducts.slice(0, limit);
@@ -144,7 +163,7 @@ export const createCart = async (variantId: string, quantity: number) => {
 export const addCartLineItem = async (
   cartId: string,
   variantId: string,
-  quantity: number
+  quantity: number,
 ) => {
   const data = await medusaFetch<{ cart: unknown }>(
     `/store/carts/${cartId}/line-items`,
@@ -152,7 +171,7 @@ export const addCartLineItem = async (
       method: "POST",
       params: { fields: CART_FIELDS },
       body: { variant_id: variantId, quantity },
-    }
+    },
   );
 
   const parsedCart = CartResult.parse(data.cart);
@@ -167,7 +186,7 @@ export const removeCartLineItem = async (cartId: string, lineId: string) => {
     {
       method: "DELETE",
       params: { fields: CART_FIELDS },
-    }
+    },
   );
 
   const parsedCart = CartResult.parse(data.parent);
@@ -185,7 +204,7 @@ export const getCart = async (cartId: string) => {
         "Content-Type": "application/json",
         "x-publishable-api-key": config.medusaPublishableKey,
       },
-    }
+    },
   );
 
   if (response.status === 404) {
@@ -193,8 +212,7 @@ export const getCart = async (cartId: string) => {
   }
 
   if (!response.ok) {
-    const responseBody = await response.text();
-    throw new Error(`${response.status} ${responseBody}`);
+    throw new Error(await extractErrorMessage(response));
   }
 
   const data = await response.json();
@@ -203,10 +221,112 @@ export const getCart = async (cartId: string) => {
   return parsedCart;
 };
 
+// Get a region by ID, including the countries it ships to — used to limit
+// the checkout address form's country select to the region's countries.
+export const getRegion = async (regionId: string) => {
+  const data = await medusaFetch<{ region: unknown }>(
+    `/store/regions/${regionId}`,
+  );
+
+  return RegionResult.parse(data.region);
+};
+
+// Update a cart's contact/shipping/billing details (checkout step 1).
+export const updateCart = async (
+  cartId: string,
+  body: {
+    email?: string;
+    shipping_address?: Record<string, unknown>;
+    billing_address?: Record<string, unknown>;
+  },
+) => {
+  const data = await medusaFetch<{ cart: unknown }>(`/store/carts/${cartId}`, {
+    method: "POST",
+    params: { fields: CART_FIELDS },
+    body,
+  });
+
+  return CartResult.parse(data.cart);
+};
+
+// List the shipping options available for a cart, with prices calculated
+// for that cart's items/destination (checkout step 2).
+export const getShippingOptions = async (cartId: string) => {
+  const data = await medusaFetch<{ shipping_options: unknown[] }>(
+    "/store/shipping-options",
+    { params: { cart_id: cartId } },
+  );
+
+  return z.array(ShippingOptionResult).parse(data.shipping_options);
+};
+
+// Set the cart's shipping method (checkout step 2).
+export const addShippingMethod = async (cartId: string, optionId: string) => {
+  const data = await medusaFetch<{ cart: unknown }>(
+    `/store/carts/${cartId}/shipping-methods`,
+    {
+      method: "POST",
+      params: { fields: CART_FIELDS },
+      body: { option_id: optionId },
+    },
+  );
+
+  return CartResult.parse(data.cart);
+};
+
+// Create (or fetch the existing) payment collection for a cart. Medusa
+// returns the existing collection if one already exists, so this is safe to
+// call every time the payment step mounts (checkout step 3).
+export const createPaymentCollection = async (cartId: string) => {
+  const data = await medusaFetch<{ payment_collection: unknown }>(
+    "/store/payment-collections",
+    { method: "POST", body: { cart_id: cartId } },
+  );
+
+  return PaymentCollectionResult.parse(data.payment_collection);
+};
+
+// Initialize a payment session on a payment collection for the given
+// provider (`pp_system_default` or `pp_stripe_stripe`) (checkout step 3).
+export const createPaymentSession = async (
+  paymentCollectionId: string,
+  providerId: string,
+) => {
+  const data = await medusaFetch<{ payment_collection: unknown }>(
+    `/store/payment-collections/${paymentCollectionId}/payment-sessions`,
+    { method: "POST", body: { provider_id: providerId } },
+  );
+
+  return PaymentCollectionResult.parse(data.payment_collection);
+};
+
+// Complete the cart. On success, Medusa returns `{ type: "order", order }`.
+// On a recoverable failure (payment declined/requires action) it responds
+// 200 with `{ type: "cart", cart, error }` instead of throwing — anything
+// else (out of stock, invalid state, …) throws via `medusaFetch`.
+export const completeCart = async (cartId: string) => {
+  return medusaFetch<{
+    type: "order" | "cart";
+    order?: unknown;
+    cart?: unknown;
+    error?: { message?: string };
+  }>(`/store/carts/${cartId}/complete`, { method: "POST" });
+};
+
+// Get an order by ID for the confirmation page. Guest orders are readable
+// with just the publishable key (no customer auth required).
+export const getOrder = async (orderId: string) => {
+  const data = await medusaFetch<{ order: unknown }>(
+    `/store/orders/${orderId}`,
+  );
+
+  return OrderResult.parse(data.order);
+};
+
 // Turn a variant's calculated_price into a plain money value for <Money />.
 // Returns undefined if the variant has no price in the configured region.
 export const toMoney = (
-  calculatedPrice: z.infer<typeof CalculatedPriceResult>
+  calculatedPrice: z.infer<typeof CalculatedPriceResult>,
 ): z.infer<typeof MoneyResult> | undefined => {
   if (!calculatedPrice || calculatedPrice.calculated_amount === null) {
     return undefined;

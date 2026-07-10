@@ -1,0 +1,198 @@
+---
+import { getOrder } from "../../utils/medusa";
+
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import NotFoundLayout from "../../layouts/NotFoundLayout.astro";
+import ResponsiveImage from "../../components/ResponsiveImage.svelte";
+import Money from "../../components/Money.svelte";
+import ClearCartOnMount from "../../components/checkout/ClearCartOnMount.svelte";
+
+const { id } = Astro.params;
+
+let order = null;
+try {
+  order = id ? await getOrder(id) : null;
+} catch {
+  // A missing/invalid order ID surfaces as a thrown error from the Store
+  // API (404) — treat it the same as "not found" below.
+  order = null;
+}
+
+if (!order) {
+  Astro.response.status = 404;
+}
+
+const address = order?.shipping_address;
+const addressLines = [
+  [address?.first_name, address?.last_name].filter(Boolean).join(" "),
+  address?.company,
+  address?.address_1,
+  address?.address_2,
+  [address?.city, address?.province, address?.postal_code]
+    .filter(Boolean)
+    .join(", "),
+  address?.country_code?.toUpperCase(),
+  address?.phone,
+].filter(Boolean);
+---
+
+{
+  !order ? (
+    <NotFoundLayout
+      title="Order not found"
+      message="We couldn't find this order."
+    />
+  ) : (
+    <BaseLayout title={`Order confirmed — ${order.id}`}>
+      <ClearCartOnMount client:load />
+
+      <div class="container py-10">
+        <div class="mx-auto max-w-3xl">
+          <div class="text-center">
+            <span class="text-4xl" aria-hidden="true">
+              🎉
+            </span>
+            <h1 class="mt-4 text-2xl font-bold text-zinc-900 sm:text-3xl">
+              Thank you, your order is confirmed!
+            </h1>
+            <p class="mt-2 text-sm text-zinc-500">
+              Order {order.display_id ? `#${order.display_id}` : order.id}
+              {order.email ? ` · Confirmation sent to ${order.email}` : ""}
+            </p>
+          </div>
+
+          <div class="mt-10 grid gap-10 sm:grid-cols-2">
+            <div class="rounded-lg border border-gray-200 p-6">
+              <h2 class="text-lg font-semibold text-zinc-800">Items</h2>
+              <ul role="list" class="mt-4 divide-y divide-zinc-100">
+                {order.items?.map((item) => (
+                  <li class="flex gap-4 py-4">
+                    <div class="h-16 w-16 shrink-0 overflow-hidden rounded-lg">
+                      <ResponsiveImage
+                        image={item.thumbnail ? { url: item.thumbnail } : null}
+                        alt={item.product_title || item.title}
+                        classList="h-full w-full object-cover object-center"
+                        sizes="64px"
+                        loading="lazy"
+                      />
+                    </div>
+                    <div class="flex flex-1 flex-col gap-1">
+                      <p class="text-sm font-medium text-zinc-800">
+                        {item.product_title || item.title}
+                      </p>
+                      {item.variant_title && (
+                        <p class="text-xs text-zinc-500">
+                          {item.variant_title}
+                        </p>
+                      )}
+                      <p class="text-xs text-zinc-500">Qty {item.quantity}</p>
+                    </div>
+                    <p class="text-sm font-medium text-zinc-800">
+                      <Money
+                        price={{
+                          amount: item.total ?? item.unit_price * item.quantity,
+                          currency_code: order.currency_code,
+                        }}
+                      />
+                    </p>
+                  </li>
+                ))}
+              </ul>
+
+              <dl class="mt-6 space-y-2 border-t border-zinc-100 pt-6 text-sm">
+                <div class="flex justify-between">
+                  <dt class="text-zinc-600">Subtotal</dt>
+                  <dd class="font-medium text-zinc-800">
+                    <Money
+                      price={{
+                        amount: order.item_total ?? 0,
+                        currency_code: order.currency_code,
+                      }}
+                    />
+                  </dd>
+                </div>
+                <div class="flex justify-between">
+                  <dt class="text-zinc-600">Shipping</dt>
+                  <dd class="font-medium text-zinc-800">
+                    <Money
+                      price={{
+                        amount: order.shipping_total ?? 0,
+                        currency_code: order.currency_code,
+                      }}
+                    />
+                  </dd>
+                </div>
+                <div class="flex justify-between">
+                  <dt class="text-zinc-600">Tax</dt>
+                  <dd class="font-medium text-zinc-800">
+                    <Money
+                      price={{
+                        amount: order.tax_total ?? 0,
+                        currency_code: order.currency_code,
+                      }}
+                    />
+                  </dd>
+                </div>
+                <div class="flex justify-between border-t border-zinc-100 pt-3 text-base font-semibold text-zinc-900">
+                  <dt>Total</dt>
+                  <dd>
+                    <Money
+                      price={{
+                        amount: order.total ?? 0,
+                        currency_code: order.currency_code,
+                      }}
+                      showCurrency={true}
+                    />
+                  </dd>
+                </div>
+              </dl>
+            </div>
+
+            <div class="rounded-lg border border-gray-200 p-6">
+              <h2 class="text-lg font-semibold text-zinc-800">
+                Shipping address
+              </h2>
+              {addressLines.length > 0 ? (
+                <address class="mt-4 text-sm text-zinc-600 not-italic">
+                  {addressLines.map((line) => (
+                    <>
+                      {line}
+                      <br />
+                    </>
+                  ))}
+                </address>
+              ) : (
+                <p class="mt-4 text-sm text-zinc-500">
+                  No shipping address on file.
+                </p>
+              )}
+
+              {order.shipping_methods && order.shipping_methods.length > 0 && (
+                <>
+                  <h2 class="mt-8 text-lg font-semibold text-zinc-800">
+                    Shipping method
+                  </h2>
+                  <p class="mt-4 text-sm text-zinc-600">
+                    {order.shipping_methods
+                      .map((method) => method.name)
+                      .join(", ")}
+                  </p>
+                </>
+              )}
+            </div>
+          </div>
+
+          <div class="mt-10 text-center">
+            <a
+              href="/"
+              class="font-semibold text-emerald-900 hover:text-emerald-700"
+            >
+              Continue shopping
+              <span aria-hidden="true"> &rarr;</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    </BaseLayout>
+  )
+}

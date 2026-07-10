@@ -241,7 +241,6 @@
                       Shipping and taxes calculated at checkout.
                     </p>
                     <div class="mt-6">
-                      <!-- TODO(checkout): wire up real Medusa checkout -->
                       <a href="/checkout" class="button">Checkout</a>
                     </div>
                   </div>

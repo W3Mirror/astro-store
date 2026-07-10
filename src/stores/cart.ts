@@ -22,6 +22,7 @@ const emptyCart = {
   subtotal: 0,
   total: 0,
   items: [],
+  shipping_methods: [],
 };
 
 // Cart store with persistent state (local storage) and initial value.
@@ -33,7 +34,7 @@ export const cart = persistentAtom<z.infer<typeof CartResult>>(
   {
     encode: JSON.stringify,
     decode: JSON.parse,
-  }
+  },
 );
 
 // Fetch cart data if a cart exists in local storage, this is called during session start only
@@ -76,6 +77,13 @@ export async function addCartItem(item: { id: string; quantity: number }) {
   } else {
     isCartUpdating.set(false);
   }
+}
+
+// Reset the cart to empty — used after a successful checkout, since the
+// Medusa cart backing it has just been converted into an order and is no
+// longer usable.
+export function clearCart() {
+  cart.set(emptyCart);
 }
 
 export async function removeCartItems(lineIds: string[]) {

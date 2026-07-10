@@ -4,6 +4,10 @@ export const configSchema = z.object({
   medusaBackendUrl: z.string(),
   medusaPublishableKey: z.string(),
   medusaRegionId: z.string(),
+  // Optional: only set when a store wants Stripe as its checkout payment
+  // provider. When empty, the checkout falls back to Medusa's manual
+  // provider (`pp_system_default`) and never loads Stripe's client SDK.
+  stripePublishableKey: z.string().optional().default(""),
 });
 
 // Medusa calculated price set (see `variant.calculated_price` on /store/products
@@ -72,6 +76,72 @@ export const ProductResult = z
   })
   .nullable();
 
+// Shipping/billing address shape accepted and returned by /store/carts and
+// /store/orders. Field names mirror Medusa's `AddressPayload` exactly (it's
+// a `.strict()` zod object server-side, so extra keys are rejected).
+export const AddressResult = z.object({
+  first_name: z.string().nullable().optional(),
+  last_name: z.string().nullable().optional(),
+  company: z.string().nullable().optional(),
+  address_1: z.string().nullable().optional(),
+  address_2: z.string().nullable().optional(),
+  city: z.string().nullable().optional(),
+  province: z.string().nullable().optional(),
+  postal_code: z.string().nullable().optional(),
+  country_code: z.string().nullable().optional(),
+  phone: z.string().nullable().optional(),
+});
+
+export const RegionCountryResult = z.object({
+  iso_2: z.string(),
+  display_name: z.string(),
+});
+
+export const RegionResult = z
+  .object({
+    id: z.string(),
+    name: z.string().optional(),
+    currency_code: z.string().optional(),
+    countries: z.array(RegionCountryResult).optional().default([]),
+  })
+  .nullable();
+
+// A shipping option scoped to a cart. Medusa always computes `amount` for
+// cart-scoped requests (`GET /store/shipping-options?cart_id=`), regardless
+// of the `fields` param, so it's safe to treat as always present.
+export const ShippingOptionResult = z.object({
+  id: z.string(),
+  name: z.string(),
+  price_type: z.string().nullable().optional(),
+  amount: z.number().nullable().optional(),
+  insufficient_inventory: z.boolean().optional(),
+});
+
+export const CartShippingMethodResult = z.object({
+  id: z.string(),
+  name: z.string().nullable().optional(),
+  amount: z.number().nullable().optional(),
+  shipping_option_id: z.string().nullable().optional(),
+});
+
+// A payment session's `data` holds provider-specific state — e.g. Stripe
+// stores its PaymentIntent there, including `client_secret`.
+export const PaymentSessionResult = z.object({
+  id: z.string(),
+  provider_id: z.string(),
+  status: z.string().optional(),
+  data: z.record(z.string(), z.unknown()).optional().default({}),
+});
+
+export const PaymentCollectionResult = z
+  .object({
+    id: z.string(),
+    amount: z.number().nullable().optional(),
+    status: z.string().optional(),
+    payment_sessions: z.array(PaymentSessionResult).optional().default([]),
+  })
+  .nullable();
+
 export const CartLineItemResult = z.object({
   id: z.string(),
   quantity: z.number(),
@@ -95,7 +165,32 @@ export const CartResult = z
     email: z.string().nullable().optional(),
     item_total: z.number().nullable().optional(),
     subtotal: z.number().nullable().optional(),
+    shipping_total: z.number().nullable().optional(),
+    tax_total: z.number().nullable().optional(),
     total: z.number().nullable().optional(),
     items: z.array(CartLineItemResult).optional().default([]),
+    shipping_address: AddressResult.nullable().optional(),
+    shipping_methods: z.array(CartShippingMethodResult).optional().default([]),
+    payment_collection: PaymentCollectionResult.optional(),
+  })
+  .nullable();
+
+// Order confirmation page. Medusa denormalizes the same display fields
+// (thumbnail, product_handle, unit_price, total, …) onto order line items
+// as it does onto cart line items, so the shape matches `CartLineItemResult`.
+export const OrderResult = z
+  .object({
+    id: z.string(),
+    display_id: z.number().nullable().optional(),
+    email: z.string().nullable().optional(),
+    currency_code: z.string(),
+    created_at: z.string().nullable().optional(),
+    items: z.array(CartLineItemResult).optional().default([]),
+    shipping_address: AddressResult.nullable().optional(),
+    shipping_methods: z.array(CartShippingMethodResult).optional().default([]),
+    item_total: z.number().nullable().optional(),
+    shipping_total: z.number().nullable().optional(),
+    tax_total: z.number().nullable().optional(),
+    total: z.number().nullable().optional(),
   })
   .nullable();

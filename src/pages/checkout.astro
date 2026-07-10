@@ -1,0 +1,24 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import Checkout from "../components/checkout/Checkout.svelte";
+import { getRegion } from "../utils/medusa";
+import { config } from "../utils/config";
+
+// The cart itself lives client-side only (its ID is in local storage), so
+// this page is a thin shell around the `Checkout` island — only the
+// region's countries (for the address form) are worth fetching on the
+// server.
+const region = await getRegion(config.medusaRegionId);
+---
+
+<BaseLayout title="Checkout">
+  <div class="container py-10">
+    <h1 class="mb-8 text-2xl font-bold text-zinc-900 sm:text-3xl">Checkout</h1>
+
+    <Checkout
+      client:load
+      countries={region?.countries ?? []}
+      stripePublishableKey={config.stripePublishableKey}
+    />
+  </div>
+</BaseLayout>
