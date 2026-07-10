@@ -1,14 +1,19 @@
 ---
 import type { z } from "zod";
 import type { ProductResult } from "../utils/schemas";
+import { toMoney } from "../utils/medusa";
 
-import ShopifyImage from "./ShopifyImage.svelte";
+import ResponsiveImage from "./ResponsiveImage.svelte";
 import Money from "./Money.svelte";
 
 export interface Props {
   product: z.infer<typeof ProductResult>;
 }
 const { product } = Astro.props as Props;
+const featuredImage = product?.thumbnail
+  ? { url: product.thumbnail }
+  : (product?.images?.[0] ?? null);
+const price = toMoney(product?.variants?.[0]?.calculated_price);
 ---
 
 <a
@@ -16,10 +21,11 @@ const { product } = Astro.props as Props;
   class="group overflow-hidden rounded-lg border-l-orange-100 shadow hover:shadow-md"
 >
   <div class="relative">
-    <ShopifyImage
+    <ResponsiveImage
       classList=""
       loading="eager"
-      image={product?.featuredImage}
+      image={featuredImage}
+      alt={product?.title}
       sizes={`
       (min-width: 1540px) 348px,
       (min-width: 1280px) 284px,
@@ -56,7 +62,7 @@ const { product } = Astro.props as Props;
   <div class="flex justify-between py-6 px-5 text-zinc-700">
     <h3 class="group-hover:underline">{product?.title}</h3>
     <p class="font-bold">
-      <Money price={product?.variants.nodes[0].price} />
+      <Money price={price} />
     </p>
   </div>
 </a>

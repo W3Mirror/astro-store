@@ -1,5 +1,5 @@
 ---
-import { getProductByHandle } from "./../../utils/shopify";
+import { getProductByHandle, toMoney } from "./../../utils/medusa";
 import { setCache } from "../../utils/cache";
 
 import BaseLayout from "../../layouts/BaseLayout.astro";
@@ -13,15 +13,23 @@ import ProductReviews from "../../components/ProductReviews.astro";
 import ProductAccordions from "../../components/ProductAccordions.astro";
 
 const { handle } = Astro.params;
-const headers = Astro.request.headers;
-const ip = headers.get("x-vercel-forwarded-for") || Astro.clientAddress;
-const product = await getProductByHandle({ handle: handle || "", buyerIP: ip });
+const product = await getProductByHandle({ handle: handle || "" });
 
 if (!product) {
   Astro.response.status = 404;
 }
 
-const firstVariant = product?.variants.nodes[0];
+const firstVariant = product?.variants?.[0];
+const price = toMoney(firstVariant?.calculated_price);
+// If inventory isn't tracked (or backorders are allowed), treat the variant
+// as having unlimited stock.
+const variantQuantityAvailable =
+  firstVariant && firstVariant.manage_inventory && !firstVariant.allow_backorder
+    ? (firstVariant.inventory_quantity ?? 0)
+    : Infinity;
+const variantAvailableForSale = firstVariant
+  ? variantQuantityAvailable > 0
+  : false;
 setCache.short(Astro);
 ---
 
@@ -37,21 +45,21 @@ setCache.short(Astro);
       <section class="container">
         <div class="pb-16 pt-6 lg:grid lg:grid-cols-12 lg:gap-20">
           <div class="lg:col-span-7">
-            <ProductImageGallery images={product.images} />
+            <ProductImageGallery images={product.images} title={product.title} />
           </div>
 
           <div class="mt-8 lg:col-span-5 lg:mt-0">
             <ProductInformations
               title={product.title}
-              price={firstVariant?.price}
+              price={price}
             />
 
             <div>
               <AddToCartForm
                 client:load
                 variantId={firstVariant?.id}
-                variantQuantityAvailable={firstVariant?.quantityAvailable}
-                variantAvailableForSale={firstVariant?.availableForSale}
+                variantQuantityAvailable={variantQuantityAvailable}
+                variantAvailableForSale={variantAvailableForSale}
               />
             </div>
 
@@ -67,7 +75,10 @@ setCache.short(Astro);
       </section>
 
       <section class="container">
-        <ProductRecommendations productId={product.id} buyerIP={ip} />
+        <ProductRecommendations
+          productId={product.id}
+          collectionId={product.collection_id}
+        />
       </section>
     </BaseLayout>
   )

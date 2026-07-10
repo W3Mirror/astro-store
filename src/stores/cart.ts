@@ -3,10 +3,10 @@ import { atom } from "nanostores";
 import { persistentAtom } from "@nanostores/persistent";
 import {
   getCart,
-  addCartLines,
+  addCartLineItem,
   createCart,
-  removeCartLines,
-} from "../utils/shopify";
+  removeCartLineItem,
+} from "../utils/medusa";
 import type { CartResult } from "../utils/schemas";
 
 // Cart drawer state (open or closed) with initial value (false) and no persistent state (local storage)
@@ -17,13 +17,16 @@ export const isCartUpdating = atom(false);
 
 const emptyCart = {
   id: "",
-  checkoutUrl: "",
-  totalQuantity: 0,
-  lines: { nodes: [] },
-  cost: { subtotalAmount: { amount: "", currencyCode: "" } },
+  currency_code: "",
+  item_total: 0,
+  subtotal: 0,
+  total: 0,
+  items: [],
 };
 
-// Cart store with persistent state (local storage) and initial value
+// Cart store with persistent state (local storage) and initial value.
+// The Medusa cart ID (`id`) lives inside this same persisted object, so
+// re-hydrating the cart on a new session only needs this one atom.
 export const cart = persistentAtom<z.infer<typeof CartResult>>(
   "cart",
   emptyCart,
@@ -34,9 +37,8 @@ export const cart = persistentAtom<z.infer<typeof CartResult>>(
 );
 
 // Fetch cart data if a cart exists in local storage, this is called during session start only
-// This is useful to validate if the cart still exists in Shopify and if it's not empty
-// Shopify automatically deletes the cart when the customer completes the checkout or if the cart is unused or abandoned after 10 days
-// https://shopify.dev/custom-storefronts/cart#considerations
+// This is useful to validate if the cart still exists in Medusa and if it's not empty
+// Medusa doesn't automatically delete carts, but they can be invalidated once completed
 export async function initCart() {
   const sessionStarted = sessionStorage.getItem("sessionStarted");
   if (!sessionStarted) {
@@ -47,15 +49,9 @@ export async function initCart() {
       const data = await getCart(cartId);
 
       if (data) {
-        cart.set({
-          id: data.id,
-          cost: data.cost,
-          checkoutUrl: data.checkoutUrl,
-          totalQuantity: data.totalQuantity,
-          lines: data.lines,
-        });
+        cart.set(data);
       } else {
-        // If the cart doesn't exist in Shopify, reset the cart store
+        // If the cart doesn't exist in Medusa anymore, reset the cart store
         cart.set(emptyCart);
       }
     }
@@ -69,36 +65,16 @@ export async function addCartItem(item: { id: string; quantity: number }) {
 
   isCartUpdating.set(true);
 
-  if (!cartId) {
-    const cartData = await createCart(item.id, item.quantity);
+  const cartData = cartId
+    ? await addCartLineItem(cartId, item.id, item.quantity)
+    : await createCart(item.id, item.quantity);
 
-    if (cartData) {
-      cart.set({
-        ...cart.get(),
-        id: cartData.id,
-        cost: cartData.cost,
-        checkoutUrl: cartData.checkoutUrl,
-        totalQuantity: cartData.totalQuantity,
-        lines: cartData.lines,
-      });
-      isCartUpdating.set(false);
-      isCartDrawerOpen.set(true);
-    }
+  if (cartData) {
+    cart.set(cartData);
+    isCartUpdating.set(false);
+    isCartDrawerOpen.set(true);
   } else {
-    const cartData = await addCartLines(cartId, item.id, item.quantity);
-
-    if (cartData) {
-      cart.set({
-        ...cart.get(),
-        id: cartData.id,
-        cost: cartData.cost,
-        checkoutUrl: cartData.checkoutUrl,
-        totalQuantity: cartData.totalQuantity,
-        lines: cartData.lines,
-      });
-      isCartUpdating.set(false);
-      isCartDrawerOpen.set(true);
-    }
+    isCartUpdating.set(false);
   }
 }
 
@@ -109,18 +85,14 @@ export async function removeCartItems(lineIds: string[]) {
   isCartUpdating.set(true);
 
   if (cartId) {
-    const cartData = await removeCartLines(cartId, lineIds);
+    let cartData = null;
+    for (const lineId of lineIds) {
+      cartData = await removeCartLineItem(cartId, lineId);
+    }
 
     if (cartData) {
-      cart.set({
-        ...cart.get(),
-        id: cartData.id,
-        cost: cartData.cost,
-        checkoutUrl: cartData.checkoutUrl,
-        totalQuantity: cartData.totalQuantity,
-        lines: cartData.lines,
-      });
-      isCartUpdating.set(false);
+      cart.set(cartData);
     }
+    isCartUpdating.set(false);
   }
 }

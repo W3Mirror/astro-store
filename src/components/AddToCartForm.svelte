@@ -14,7 +14,7 @@
   // Check if the variant is already in the cart and if there are any units left
   let variantInCart =
     $derived($cart &&
-    $cart.lines?.nodes.filter((item) => item.merchandise.id === variantId)[0]);
+    $cart.items?.filter((item) => item.variant_id === variantId)[0]);
   let noQuantityLeft =
     $derived(variantInCart && variantQuantityAvailable <= variantInCart?.quantity);
 

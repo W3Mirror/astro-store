@@ -1,4 +1,4 @@
-# Astro starter theme to build a headless ecommerce website with Shopify
+# Astro starter theme to build a headless ecommerce website with Medusa
 
 The theme is built with Svelte but you can use any framework you like (React, Vue, Solid etc.) thanks to Astro.
 Tailwind UI free components are used for the design.
@@ -7,25 +7,22 @@ Tailwind UI free components are used for the design.
 
 ## 🧑‍🚀 Where to start
 
-1. Create a `.env` file based on `.env.example` with your Shopify store url and your public and private access tokens
-2. The credentials are used inside the `/utils/config.ts` file, you can update the API version there
+1. Create a `.env` file based on `.env.example` with your Medusa backend URL, publishable API key and region ID
+2. The credentials are used inside the `/utils/config.ts` file
 3. Run `npm install` or `yarn` or `pnpm install`
 4. Run `npm run dev` or `yarn run dev` or `pnpm run dev`
 
-## Shopify Configuration Guide
+## Medusa Configuration Guide
 
-- Create a new account or use an existing one. https://accounts.shopify.com/store-login
-- Add the [Shopify Headless channel](https://apps.shopify.com/headless) to your store
-- Click on `Add Storefront`
-- Copy/Paste your `public` and `private` access tokens to your .env file
-- Next, check Storefront API access scopes
-  - `unauthenticated_read_product_listings` and `unauthenticated_read_product_inventory` access should be fine to get you started.
-  - Add more scopes if you require additional permissions.
+- Create or use an existing [Medusa](https://medusajs.com) backend.
+- In the Medusa Admin, go to Settings → API Key Management and create (or copy) a publishable API key, then copy it to `PUBLIC_MEDUSA_PUBLISHABLE_KEY`.
+- Make sure the publishable key is associated with a sales channel that has products.
+- Copy a region's ID (Settings → Regions) to `PUBLIC_MEDUSA_REGION_ID` — it's used to request calculated prices.
 
-### Shopify Troubleshooting
+### Medusa Troubleshooting
 
-- If you encounter an error like `error code 401` you likely didn't set this up correctly. Revisit your scopes and be sure add at least one test product. Also make sure you are using the `Storefront API` and not the `Admin API` as the endpoints and scopes are different.
-- If you do not see a checkout sidebar, or if it is empty after adding a product, you need to add an image to your test product.
+- If products come back with no prices, double-check `PUBLIC_MEDUSA_REGION_ID` matches a region with a price list/currency configured for your products.
+- If you get a 401/403, verify the publishable API key is valid and scoped to a sales channel that includes your products.
 
 ## 🚀 Project Structure
 
@@ -46,7 +43,7 @@ Inside the project, you'll see the following folders and files:
 │   └── styles/
 │       └── global.css
 │   └── utils/
-│       └── shopify.ts
+│       └── medusa.ts
 └── package.json
 ```
 

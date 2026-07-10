@@ -4,54 +4,34 @@
 
   interface Props {
     image: z.infer<typeof ImageResult>;
+    alt?: string;
     classList?: string;
     loading?: "lazy" | "eager";
-    sizes: string;
+    sizes?: string;
   }
 
   let {
     image,
+    alt = "",
     classList = "",
     loading = "lazy",
     sizes
   }: Props = $props();
-
-  // Values used for srcset attribute of image tag (in pixels)
-  const srcSetValues = [
-    50, 100, 200, 450, 600, 750, 900, 1000, 1250, 1500, 1750, 2000, 2500,
-  ];
-
-  // Function to generate Shopify image url with width and height parameters
-  function imageFilter(size: { width: number; height?: number }) {
-    const { width, height = "" } = size;
-
-    return image && `${image.url}&width=${width}&height=${height}`;
-  }
 </script>
 
 {#if image}
+  <!-- Medusa serves plain image URLs (no built-in resizing service), so we
+       render a simple responsive <img> and let the browser pick the
+       intrinsic size. `sizes` is kept for layout hints in CSS. -->
   <img
     src={image.url}
-    alt={image.altText || "Default alt text"}
+    alt={alt || "Product image"}
     class={classList}
-    width={image.width}
-    height={image.height}
     {loading}
     {sizes}
-    srcset={srcSetValues
-      .filter((value) => image && value < image.width)
-      .map((value) => {
-        if (image && image.width >= value) {
-          return `${imageFilter({
-            width: value,
-          })} ${value}w`;
-        }
-      })
-      .join(", ")
-      .concat(`, ${image.url} ${image.width}w`)}
   />
 {:else}
-  <!-- Shopify product image placeholder -->
+  <!-- Product image placeholder -->
   <svg
     class="bg-slate-300"
     xmlns="http://www.w3.org/2000/svg"

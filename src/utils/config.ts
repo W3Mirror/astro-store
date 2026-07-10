@@ -1,14 +1,9 @@
 import { configSchema } from "./schemas";
 
 const defineConfig = {
-  shopifyShop: import.meta.env.PUBLIC_SHOPIFY_SHOP,
-  publicShopifyAccessToken: import.meta.env
-    .PUBLIC_SHOPIFY_STOREFRONT_ACCESS_TOKEN,
-  privateShopifyAccessToken: import.meta.env
-    .PRIVATE_SHOPIFY_STOREFRONT_ACCESS_TOKEN
-    ? import.meta.env.PRIVATE_SHOPIFY_STOREFRONT_ACCESS_TOKEN
-    : "",
-  apiVersion: "2023-01",
+  medusaBackendUrl: import.meta.env.PUBLIC_MEDUSA_BACKEND_URL,
+  medusaPublishableKey: import.meta.env.PUBLIC_MEDUSA_PUBLISHABLE_KEY,
+  medusaRegionId: import.meta.env.PUBLIC_MEDUSA_REGION_ID,
 };
 
 export const config = configSchema.parse(defineConfig);

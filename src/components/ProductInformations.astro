@@ -1,10 +1,10 @@
 ---
 import type { z } from "zod";
-import type { MoneyV2Result } from "../utils/schemas";
+import type { MoneyResult } from "../utils/schemas";
 import Money from "./Money.svelte";
 
 export interface Props {
-  price?: z.infer<typeof MoneyV2Result>;
+  price?: z.infer<typeof MoneyResult>;
   title: string;
 }
 const { price, title } = Astro.props as Props;

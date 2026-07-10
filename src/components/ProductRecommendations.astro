@@ -1,16 +1,16 @@
 ---
-import { getProductRecommendations } from "../utils/shopify";
+import { getProductRecommendations } from "../utils/medusa";
 import ProductCard from "./ProductCard.astro";
 export interface Props {
   productId: string;
-  buyerIP: string;
+  collectionId?: string | null;
 }
 
-const { productId, buyerIP } = Astro.props as Props;
+const { productId, collectionId } = Astro.props as Props;
 
 const productRecommendations = await getProductRecommendations({
   productId,
-  buyerIP,
+  collectionId,
 });
 ---
 

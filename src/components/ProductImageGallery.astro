@@ -1,24 +1,22 @@
 ---
 import { z } from "zod";
 import { ImageResult } from "../utils/schemas";
-import ShopifyImage from "./ShopifyImage.svelte";
-
-const ImagesResult = z.object({
-  nodes: z.array(ImageResult),
-});
+import ResponsiveImage from "./ResponsiveImage.svelte";
 
 export interface Props {
-  images: z.infer<typeof ImagesResult>;
+  images: z.infer<typeof ImageResult>[];
+  title: string;
 }
-const { images } = Astro.props as Props;
+const { images, title } = Astro.props as Props;
 ---
 
 <div class="grid gap-4 md:grid-cols-8 lg:gap-6">
   <div class="md:order-2 md:col-span-6">
-    <ShopifyImage
+    <ResponsiveImage
       classList="overflow-hidden rounded-lg h-full object-cover"
       loading="eager"
-      image={images.nodes[0]}
+      image={images[0]}
+      alt={title}
       sizes={`
           (min-width: 1540px) 475px,
           (min-width: 1280px) 389px,
@@ -39,18 +37,19 @@ const { images } = Astro.props as Props;
       "md:flex",
       "md:flex-col",
       "md:gap-6",
-      { "md:justify-between": images.nodes.length > 2 },
+      { "md:justify-between": images.length > 2 },
     ]}
   >
     {
-      images.nodes.map((image, index) => {
+      images.map((image, index) => {
         if (index < 3) {
           return (
             <div class="overflow-hidden rounded-lg">
-              <ShopifyImage
+              <ResponsiveImage
                 classList=""
                 loading="eager"
                 image={image}
+                alt={title}
                 sizes={`
                   (min-width: 1540px) 475px,
                   (min-width: 1280px) 389px,

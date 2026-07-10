@@ -8,7 +8,7 @@
     removeCartItems,
     isCartUpdating,
   } from "../stores/cart";
-  import ShopifyImage from "./ShopifyImage.svelte";
+  import ResponsiveImage from "./ResponsiveImage.svelte";
   import Money from "./Money.svelte";
   import { clickOutside } from "../utils/click-outside";
 
@@ -129,19 +129,20 @@
 
               <div class="flex-1 overflow-y-scroll">
                 <div class="px-5">
-                  {#if $cart && $cart.lines?.nodes.length > 0}
+                  {#if $cart && $cart.items && $cart.items.length > 0}
                     <!-- svelte-ignore a11y_no_redundant_roles -->
                     <ul
                       role="list"
                       class="divide-y divide-zinc-100 {cartIsUpdatingClass}"
                     >
-                      {#each $cart.lines?.nodes as item}
+                      {#each $cart.items as item}
                         <li class="grid py-8 grid-cols-12 gap-3">
                           <div
                             class="overflow-hidden rounded-lg col-span-3 lg:col-span-2"
                           >
-                            <ShopifyImage
-                              image={item.merchandise.image}
+                            <ResponsiveImage
+                              image={item.thumbnail ? { url: item.thumbnail } : null}
+                              alt={item.product_title || item.title}
                               classList="object-cover h-full object-center aspect-1"
                               sizes="(min-width: 100px) 100px"
                               loading="lazy"
@@ -152,12 +153,17 @@
                           >
                             <a
                               class="hover:underline w-fit"
-                              href={`/products/${item.merchandise.product.handle}`}
+                              href={`/products/${item.product_handle}`}
                             >
-                              {item.merchandise.product.title}
+                              {item.product_title || item.title}
                             </a>
                             <p class="text-xs">
-                              <Money price={item.cost.amountPerQuantity} />
+                              <Money
+                                price={{
+                                  amount: item.unit_price,
+                                  currency_code: $cart.currency_code,
+                                }}
+                              />
                             </p>
                           </div>
                           <div
@@ -187,7 +193,12 @@
                             </button>
                             <div>
                               <p class="font-medium">
-                                <Money price={item.cost.totalAmount} />
+                                <Money
+                                  price={{
+                                    amount: item.total ?? item.unit_price * item.quantity,
+                                    currency_code: $cart.currency_code,
+                                  }}
+                                />
                               </p>
                             </div>
                           </div>
@@ -210,7 +221,7 @@
               </div>
 
               <div class="">
-                {#if $cart && $cart.lines?.nodes.length > 0}
+                {#if $cart && $cart.items && $cart.items.length > 0}
                   <div class="border-t border-zinc-200 py-6 px-4 sm:px-6">
                     <div
                       class="flex justify-between text-base font-medium text-gray-900"
@@ -218,7 +229,10 @@
                       <p>Subtotal</p>
                       <p>
                         <Money
-                          price={$cart.cost.subtotalAmount}
+                          price={{
+                            amount: $cart.subtotal ?? 0,
+                            currency_code: $cart.currency_code,
+                          }}
                           showCurrency={true}
                         />
                       </p>
@@ -227,7 +241,8 @@
                       Shipping and taxes calculated at checkout.
                     </p>
                     <div class="mt-6">
-                      <a href={$cart.checkoutUrl} class="button">Checkout</a>
+                      <!-- TODO(checkout): wire up real Medusa checkout -->
+                      <a href="/checkout" class="button">Checkout</a>
                     </div>
                   </div>
                 {/if}
