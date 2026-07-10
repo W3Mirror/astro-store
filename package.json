@@ -7,13 +7,16 @@
     "dev": "astro dev",
     "start": "astro dev",
     "build": "astro build",
-    "preview": "astro preview",
+    "build:cf": "astro build",
+    "preview": "wrangler dev",
+    "preview:dev": "astro dev",
+    "deploy": "wrangler deploy",
     "astro": "astro",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@astrojs/cloudflare": "^12.6.13",
     "@astrojs/svelte": "^7.2.5",
-    "@astrojs/vercel": "^9.0.5",
     "@nanostores/persistent": "^1.3.4",
     "@tailwindcss/vite": "^4.3.2",
     "astro": "^5.18.1",
@@ -26,9 +29,15 @@
     "prettier-plugin-astro": "^0.14.1",
     "prettier-plugin-tailwindcss": "^0.8.0",
     "tailwindcss": "^4.3.2",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "wrangler": "4.107.0"
   },
   "engines": {
     "node": ">=20"
+  },
+  "pnpm": {
+    "overrides": {
+      "vite": "^6.4.1"
+    }
   }
 }

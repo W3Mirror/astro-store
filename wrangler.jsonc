@@ -1,0 +1,36 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // Rename this per-store when you fork the template (must be unique in
+  // your Cloudflare account / Workers-for-Platforms dispatch namespace).
+  "name": "astro-store",
+  "compatibility_date": "2026-07-01",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // Astro's Cloudflare adapter builds a Worker at dist/_worker.js and
+  // writes static assets alongside it directly under dist/ (no separate
+  // dist/client split). `public/.assetsignore` (copied into dist/ by
+  // `astro build`) tells Wrangler's asset uploader to skip _worker.js and
+  // _routes.json so they aren't served as static files.
+  "main": "./dist/_worker.js/index.js",
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+  },
+
+  // PUBLIC_* vars are inlined at build time by Vite (see src/utils/config.ts),
+  // so they must also be set wherever `astro build` / `bun run build:cf`
+  // runs (CI secret, Workers-for-Platforms build pipeline env, or a local
+  // `.env`). The values below are placeholders for local `wrangler dev` /
+  // `wrangler deploy --dry-run` only — replace per-environment, or better,
+  // move them to `wrangler secret put` / dashboard env vars for anything
+  // that shouldn't be world-readable at build time.
+  "vars": {
+    "PUBLIC_MEDUSA_BACKEND_URL": "https://REPLACE_ME.medusa-backend.example.com",
+    "PUBLIC_MEDUSA_PUBLISHABLE_KEY": "pk_REPLACE_ME",
+    "PUBLIC_MEDUSA_REGION_ID": "reg_REPLACE_ME",
+  },
+
+  "observability": {
+    "enabled": true,
+  },
+}
