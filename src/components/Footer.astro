@@ -1,11 +1,12 @@
 ---
-import { config } from "../utils/config";
+import { getSiteConfig } from "../utils/site-config";
 
+const siteConfig = await getSiteConfig();
 const year = new Date().getFullYear();
 ---
 
 <footer class="text-sm text-gray-600">
   <div class="container py-8">
-    <p>&copy; {year} {config.storeName}. All rights reserved.</p>
+    <p>&copy; {year} {siteConfig.storeName}. All rights reserved.</p>
   </div>
 </footer>

@@ -3,14 +3,15 @@ import Header from "../components/Header.astro";
 import Footer from "../components/Footer.astro";
 import CartDrawer from "../components/CartDrawer.svelte";
 import AnnouncementBar from "../components/AnnouncementBar.astro";
-import { config } from "../utils/config";
+import { getSiteConfig } from "../utils/site-config";
 
 export interface Props {
   title: string;
   description?: string;
 }
 
-const defaultDesc = `Shop online at ${config.storeName}.`;
+const siteConfig = await getSiteConfig();
+const defaultDesc = `Shop online at ${siteConfig.storeName}.`;
 
 const { title, description = defaultDesc } = Astro.props as Props;
 ---

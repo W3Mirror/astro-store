@@ -7,6 +7,7 @@ const defineConfig = {
   stripePublishableKey: import.meta.env.PUBLIC_STRIPE_KEY,
   storeName: import.meta.env.PUBLIC_STORE_NAME,
   announcementMessage: import.meta.env.PUBLIC_ANNOUNCEMENT_MESSAGE,
+  siteConfigUrl: import.meta.env.PUBLIC_SITE_CONFIG_URL,
 };
 
 export const config = configSchema.parse(defineConfig);

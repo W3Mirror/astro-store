@@ -1,16 +1,19 @@
 ---
 import { getProducts } from "./../utils/medusa";
 import BaseLayout from "../layouts/BaseLayout.astro";
+import Hero from "../components/Hero.astro";
 import Products from "../components/Products.astro";
 import { setCache } from "../utils/cache";
-import { config } from "../utils/config";
+import { getSiteConfig } from "../utils/site-config";
 
-const title = config.storeName;
+const siteConfig = await getSiteConfig();
+const title = siteConfig.storeName;
 const products = await getProducts({});
 
 setCache.short(Astro);
 ---
 
 <BaseLayout title={title}>
+  <Hero heading={siteConfig.heroHeading} subheading={siteConfig.heroSubheading} />
   <Products products={products} />
 </BaseLayout>

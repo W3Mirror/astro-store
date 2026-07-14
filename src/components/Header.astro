@@ -1,6 +1,8 @@
 ---
 import CartIcon from "./CartIcon.svelte";
-import { config } from "../utils/config";
+import { getSiteConfig } from "../utils/site-config";
+
+const siteConfig = await getSiteConfig();
 ---
 
 <header class="sticky top-0 z-40">
@@ -8,7 +10,7 @@ import { config } from "../utils/config";
     <nav class="container grid grid-cols-3 items-center">
       <a href="/" class="flex items-center">
         <span class="text-sm font-semibold text-gray-900 sm:text-xl">
-          {config.storeName}
+          {siteConfig.storeName}
         </span>
       </a>
       <div></div>

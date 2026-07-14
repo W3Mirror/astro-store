@@ -1,7 +1,8 @@
 ---
-import { config } from "../utils/config";
+import { getSiteConfig } from "../utils/site-config";
 
-const message = config.announcementMessage;
+const siteConfig = await getSiteConfig();
+const message = siteConfig.announcementMessage;
 ---
 
 {

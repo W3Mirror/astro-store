@@ -13,6 +13,21 @@ export const configSchema = z.object({
   // Optional announcement banner message. Empty/unset hides the banner
   // entirely — it is off by default.
   announcementMessage: z.string().optional().default(""),
+  // Optional URL to a per-store site-config JSON endpoint (see
+  // `utils/site-config.ts`). When unset, the store runs entirely on the
+  // env-based defaults above.
+  siteConfigUrl: z.string().optional().default(""),
+});
+
+// Shape of the JSON served by the public per-project site-config endpoint.
+// Every field is optional/nullable — the overlay only applies fields that
+// come back as non-empty strings, falling back to the env-based `config`
+// defaults otherwise.
+export const SiteConfigOverlayResult = z.object({
+  storeName: z.string().nullable().optional(),
+  announcementMessage: z.string().nullable().optional(),
+  heroHeading: z.string().nullable().optional(),
+  heroSubheading: z.string().nullable().optional(),
 });
 
 // Medusa calculated price set (see `variant.calculated_price` on /store/products
