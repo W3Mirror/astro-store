@@ -4,6 +4,11 @@ Production target: **Cloudflare Workers** (static assets + SSR Worker, via
 `@astrojs/cloudflare`). This doc covers the env contract, the local/CI
 sandbox preview flow, and what a Workers-for-Platforms (WFP) upload expects.
 
+A second, per-store publish path targeting **Vercel** (Build Output API v3,
+via `@astrojs/vercel`) also exists — see "Vercel build target" below. It
+reuses the same env contract; everything in this doc about `PUBLIC_*`
+variables being build-time-only applies to it too.
+
 ## Env contract
 
 All Medusa config lives in three `PUBLIC_`-prefixed variables (see
@@ -47,6 +52,27 @@ when `astro build` runs — they are not read from `wrangler.jsonc` `vars` or
 | `bun run build:cf`    | `astro build` targeting the Cloudflare adapter (`output: "server"`, `adapter: cloudflare()`). Produces `dist/_worker.js/index.js` + static assets under `dist/`. |
 | `bun run preview`     | `wrangler dev` — runs the built Worker against local `workerd`, with `platformProxy` emulating bindings (`ASSETS`, KV). Run `build:cf` first.                    |
 | `bun run deploy`      | `wrangler deploy` — real deploy to your Cloudflare account/namespace using `wrangler.jsonc`.                                                                     |
+
+## Vercel build target
+
+| Script                | What it does                                                                                                                                                  |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `bun run build:vercel` | `astro build --config astro.config.vercel.mjs` — same `output: "server"` SSR mode, `@astrojs/vercel` adapter. Produces `.vercel/output` (Build Output API v3: `static/`, `functions/_render.func`, `config.json`). |
+
+Kept as a separate config file (`astro.config.vercel.mjs`), not an
+env-switched adapter in `astro.config.mjs`, so the default `bun run build` /
+`build:cf` / `wrangler` path above is untouched. Pinned to
+`@astrojs/vercel@9.0.5` — versions `>=10` require `astro@^6`/`^7`, and this
+template is on `astro@5.18.1`.
+
+The per-store publish pipeline (`web-app/ecomm-ai`, `packages/sandbox`)
+runs `bun run build:vercel` inside a build sandbox with the same
+`PUBLIC_MEDUSA_*` / `PUBLIC_STORE_NAME` / `PUBLIC_SITE_CONFIG_URL` env vars
+as the Cloudflare path, then ships `.vercel/output` with
+`vercel deploy --prebuilt` — no Vercel build minutes consumed. The
+runtime-fetched `PUBLIC_SITE_CONFIG_URL` overlay (`src/utils/site-config.ts`)
+uses plain `fetch` and needs no adapter-specific code; it works unmodified
+in Vercel's Node serverless functions.
 
 ## Sandbox-preview flow (Vercel Sandbox)
 
