@@ -9,7 +9,7 @@
     "build": "astro build",
     "build:cf": "astro build",
     "preview": "wrangler dev",
-    "preview:dev": "astro dev",
+    "preview:dev": "astro dev --host --port 3000",
     "deploy": "wrangler deploy",
     "astro": "astro",
     "typecheck": "tsc --noEmit"

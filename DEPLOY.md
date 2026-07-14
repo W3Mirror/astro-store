@@ -42,7 +42,7 @@ when `astro build` runs — they are not read from `wrangler.jsonc` `vars` or
 | Script                | What it does                                                                                                                                                     |
 | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `bun run dev`         | `astro dev` — local dev server, Node runtime.                                                                                                                    |
-| `bun run preview:dev` | Same as `dev`; plain `astro dev`, no Cloudflare runtime emulation. Used by the sandbox-preview flow below.                                                       |
+| `bun run preview:dev` | Same as `dev`; plain `astro dev --host --port 3000`, no Cloudflare runtime emulation. Used by the sandbox-preview flow below.                                   |
 | `bun run build`       | `astro build` — same as `build:cf` today; kept for parity with the Astro convention.                                                                             |
 | `bun run build:cf`    | `astro build` targeting the Cloudflare adapter (`output: "server"`, `adapter: cloudflare()`). Produces `dist/_worker.js/index.js` + static assets under `dist/`. |
 | `bun run preview`     | `wrangler dev` — runs the built Worker against local `workerd`, with `platformProxy` emulating bindings (`ASSETS`, KV). Run `build:cf` first.                    |
@@ -64,6 +64,12 @@ previews) runs `bun run preview:dev`, i.e. **plain `astro dev`**, not
   any today (no `Astro.locals.runtime`, no sessions, no KV) — see "No
   Node-only APIs" below for why that's safe to assume stays true.
 - Requires the same `.env` / env vars as local dev (see "Env contract").
+- `--host` (bind `0.0.0.0`, not just `localhost`) and `--port 3000` are
+  required: Vercel Sandbox only forwards traffic to a process actually
+  listening on the sandbox's exposed port (`3000`, matching `PREVIEW_PORT`
+  in `packages/sandbox` in `web-app/ecomm-ai`) on a non-loopback address.
+  Plain `astro dev` defaults to `localhost:4321`, which the sandbox can
+  never reach — the preview URL 502s forever in that case.
 
 If you add code that depends on Cloudflare-only bindings
 (`Astro.locals.runtime.env`, KV, D1, etc.), it will work under `bun run
