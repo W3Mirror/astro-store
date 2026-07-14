@@ -3,14 +3,14 @@ import Header from "../components/Header.astro";
 import Footer from "../components/Footer.astro";
 import CartDrawer from "../components/CartDrawer.svelte";
 import AnnouncementBar from "../components/AnnouncementBar.astro";
+import { config } from "../utils/config";
 
 export interface Props {
   title: string;
   description?: string;
 }
 
-const defaultDesc =
-  "A lightweight and minimalit Astro starter theme using Shopify with Svelte, Tailwind, and TypeScript.";
+const defaultDesc = `Shop online at ${config.storeName}.`;
 
 const { title, description = defaultDesc } = Astro.props as Props;
 ---

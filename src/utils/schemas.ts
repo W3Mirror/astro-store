@@ -8,6 +8,11 @@ export const configSchema = z.object({
   // provider. When empty, the checkout falls back to Medusa's manual
   // provider (`pp_system_default`) and never loads Stripe's client SDK.
   stripePublishableKey: z.string().optional().default(""),
+  // Neutral store name shown in the header, page titles, and footer.
+  storeName: z.string().optional().default("Your Store"),
+  // Optional announcement banner message. Empty/unset hides the banner
+  // entirely — it is off by default.
+  announcementMessage: z.string().optional().default(""),
 });
 
 // Medusa calculated price set (see `variant.calculated_price` on /store/products

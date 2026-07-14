@@ -5,6 +5,8 @@ const defineConfig = {
   medusaPublishableKey: import.meta.env.PUBLIC_MEDUSA_PUBLISHABLE_KEY,
   medusaRegionId: import.meta.env.PUBLIC_MEDUSA_REGION_ID,
   stripePublishableKey: import.meta.env.PUBLIC_STRIPE_KEY,
+  storeName: import.meta.env.PUBLIC_STORE_NAME,
+  announcementMessage: import.meta.env.PUBLIC_ANNOUNCEMENT_MESSAGE,
 };
 
 export const config = configSchema.parse(defineConfig);

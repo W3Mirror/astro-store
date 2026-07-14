@@ -3,8 +3,9 @@ import { getProducts } from "./../utils/medusa";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import Products from "../components/Products.astro";
 import { setCache } from "../utils/cache";
+import { config } from "../utils/config";
 
-const title = "Astro + Medusa";
+const title = config.storeName;
 const products = await getProducts({});
 
 setCache.short(Astro);
