@@ -162,6 +162,55 @@ export const PaymentCollectionResult = z
   })
   .nullable();
 
+export const PaymentOptionResult = z.object({
+  provider: z.enum(["stripe", "cashfree", "razorpay", "manual"]),
+  provider_id: z.string(),
+  name: z.string(),
+  public_config: z.record(z.string(), z.unknown()).optional().default({}),
+  metadata: z.record(z.string(), z.unknown()).optional().default({}),
+});
+
+export const PaymentOptionsResult = z.object({
+  store_id: z.string(),
+  payment_options: z.array(PaymentOptionResult),
+});
+
+export const DeliveryTrackingEventResult = z.object({
+  status: z.string(),
+  code: z.string().optional(),
+  description: z.string(),
+  location: z.string().optional(),
+  occurred_at: z.string(),
+});
+
+export const DeliveryTrackingSnapshotResult = z.object({
+  tracking_number: z.string(),
+  tracking_url: z.string().optional(),
+  carrier: z.string(),
+  status: z.string(),
+  estimated_delivery: z.string().optional(),
+  updated_at: z.string(),
+  events: z.array(DeliveryTrackingEventResult).optional().default([]),
+});
+
+export const OrderTrackingResult = z.object({
+  order_id: z.string(),
+  shipments: z.array(
+    z.object({
+      fulfillment_id: z.string(),
+      provider_id: z.string(),
+      tracking_number: z.string(),
+      tracking_url: z.string().optional(),
+      carrier: z.string(),
+      status: z.string(),
+      estimated_delivery: z.string().optional(),
+      events: z.array(DeliveryTrackingEventResult).optional().default([]),
+      terminal: z.boolean(),
+      synced_at: z.string().optional(),
+    }),
+  ),
+});
+
 export const CartLineItemResult = z.object({
   id: z.string(),
   quantity: z.number(),

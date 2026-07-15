@@ -4,7 +4,9 @@ import {
   CartResult,
   MoneyResult,
   OrderResult,
+  OrderTrackingResult,
   PaymentCollectionResult,
+  PaymentOptionsResult,
   ProductResult,
   RegionResult,
   ShippingOptionResult,
@@ -291,13 +293,37 @@ export const createPaymentCollection = async (cartId: string) => {
 export const createPaymentSession = async (
   paymentCollectionId: string,
   providerId: string,
+  storeId: string,
 ) => {
   const data = await medusaFetch<{ payment_collection: unknown }>(
     `/store/payment-collections/${paymentCollectionId}/payment-sessions`,
-    { method: "POST", body: { provider_id: providerId } },
+    {
+      method: "POST",
+      body: { provider_id: providerId, data: { store_id: storeId } },
+    },
   );
 
   return PaymentCollectionResult.parse(data.payment_collection);
+};
+
+// Discover payment providers after the cart has its final address and region.
+// The backend applies per-store routing and returns only verified providers.
+export const getPaymentOptions = async (cartId: string) => {
+  const data = await medusaFetch<unknown>(
+    `/store/carts/${cartId}/payment-options`,
+  );
+
+  return PaymentOptionsResult.parse(data);
+};
+
+export const confirmPaymentSession = async (
+  paymentSessionId: string,
+  data: Record<string, unknown> = {},
+) => {
+  return medusaFetch<{ payment: unknown }>(
+    `/store/payment-sessions/${paymentSessionId}/confirm`,
+    { method: "POST", body: data },
+  );
 };
 
 // Complete the cart. On success, Medusa returns `{ type: "order", order }`.
@@ -321,6 +347,14 @@ export const getOrder = async (orderId: string) => {
   );
 
   return OrderResult.parse(data.order);
+};
+
+export const getOrderTracking = async (orderId: string, email: string) => {
+  const data = await medusaFetch<unknown>(`/store/orders/${orderId}/tracking`, {
+    method: "POST",
+    body: { email },
+  });
+  return OrderTrackingResult.parse(data);
 };
 
 // Turn a variant's calculated_price into a plain money value for <Money />.

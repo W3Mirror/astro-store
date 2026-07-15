@@ -13,10 +13,9 @@
 
   interface Props {
     countries: Country[];
-    stripePublishableKey: string;
   }
 
-  let { countries, stripePublishableKey }: Props = $props();
+  let { countries }: Props = $props();
 
   type Step = "contact" | "shipping" | "payment";
 
@@ -35,6 +34,10 @@
 
   onMount(async () => {
     await initCart();
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("cashfree") === "true") {
+      step = "payment";
+    }
     ready = true;
   });
 
@@ -119,7 +122,6 @@
         />
       {:else if step === "payment"}
         <CheckoutPaymentStep
-          {stripePublishableKey}
           onBack={() => goToStep("shipping")}
         />
       {/if}

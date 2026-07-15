@@ -15,10 +15,6 @@ const region = await getRegion(config.medusaRegionId);
   <div class="container py-10">
     <h1 class="mb-8 text-2xl font-bold text-zinc-900 sm:text-3xl">Checkout</h1>
 
-    <Checkout
-      client:load
-      countries={region?.countries ?? []}
-      stripePublishableKey={config.stripePublishableKey}
-    />
+    <Checkout client:load countries={region?.countries ?? []} />
   </div>
 </BaseLayout>
