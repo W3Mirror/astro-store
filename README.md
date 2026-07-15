@@ -18,6 +18,8 @@ Tailwind UI free components are used for the design.
 - In the Medusa Admin, go to Settings → API Key Management and create (or copy) a publishable API key, then copy it to `PUBLIC_MEDUSA_PUBLISHABLE_KEY`.
 - Make sure the publishable key is associated with a sales channel that has products.
 - Copy a region's ID (Settings → Regions) to `PUBLIC_MEDUSA_REGION_ID` — it's used to request calculated prices.
+- Payment methods are discovered from the backend's per-store payment plugin configuration; gateway credentials and public keys do not belong in this frontend's environment.
+- Delivery tracking is provided by the backend's configured fulfillment plugins and appears on the order page when available.
 
 ### Medusa Troubleshooting
 
