@@ -90,7 +90,7 @@
       }
 
       selectedProviderId = options[0].provider_id;
-      await preparePayment(options[0], result.store_id);
+      await preparePayment(options[0]);
     } catch (err) {
       error = messageFromError(err, "Couldn't start payment. Please try again.");
       initializing = false;
@@ -115,14 +115,14 @@
         throw new Error("That payment method is no longer available.");
       }
       options = result.payment_options;
-      await preparePayment(current, result.store_id);
+      await preparePayment(current);
     } catch (err) {
       error = messageFromError(err, "Couldn't start that payment method.");
       initializing = false;
     }
   }
 
-  async function preparePayment(option: PaymentOption, storeId: string) {
+  async function preparePayment(option: PaymentOption) {
     const cartId = cart.get()?.id;
     if (!cartId) return;
 
@@ -141,7 +141,6 @@
     const updatedCollection = await createPaymentSession(
       paymentCollection.id,
       option.provider_id,
-      storeId,
     );
     const nextSession = updatedCollection?.payment_sessions?.find(
       (candidate) => candidate.provider_id === option.provider_id,

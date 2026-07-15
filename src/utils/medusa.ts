@@ -293,14 +293,10 @@ export const createPaymentCollection = async (cartId: string) => {
 export const createPaymentSession = async (
   paymentCollectionId: string,
   providerId: string,
-  storeId: string,
 ) => {
   const data = await medusaFetch<{ payment_collection: unknown }>(
     `/store/payment-collections/${paymentCollectionId}/payment-sessions`,
-    {
-      method: "POST",
-      body: { provider_id: providerId, data: { store_id: storeId } },
-    },
+    { method: "POST", body: { provider_id: providerId } },
   );
 
   return PaymentCollectionResult.parse(data.payment_collection);
