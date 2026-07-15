@@ -35,7 +35,10 @@
   onMount(async () => {
     await initCart();
     const params = new URLSearchParams(window.location.search);
-    if (params.get("cashfree") === "true") {
+    if (
+      params.get("cashfree") === "true" ||
+      params.get("stripe") === "true"
+    ) {
       step = "payment";
     }
     ready = true;

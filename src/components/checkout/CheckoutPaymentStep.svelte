@@ -39,6 +39,8 @@
   };
 
   const CASHFREE_PENDING_KEY = "medusa_cashfree_payment";
+  const STRIPE_PENDING_KEY = "medusa_stripe_payment";
+  const ORDER_TRACKING_EMAIL_PREFIX = "medusa_order_tracking_email:";
 
   let { onBack }: Props = $props();
 
@@ -80,6 +82,18 @@
       }
     }
 
+    if (new URLSearchParams(window.location.search).get("stripe") === "true") {
+      try {
+        placing = true;
+        await resumeStripePayment(cartId);
+        return;
+      } catch (err) {
+        error = messageFromError(err, "Couldn't verify the Stripe payment.");
+        placing = false;
+        clearPaymentReturnParams();
+      }
+    }
+
     try {
       const result = await getPaymentOptions(cartId);
       options = result.payment_options;
@@ -101,6 +115,7 @@
     if (option.provider_id === selectedProviderId && session) return;
 
     selectedProviderId = option.provider_id;
+    const currentPreparation = ++preparationId;
     const cartId = cart.get()?.id;
     if (!cartId) return;
 
@@ -111,22 +126,27 @@
       const current = result.payment_options.find(
         (candidate) => candidate.provider_id === option.provider_id,
       );
+      if (currentPreparation !== preparationId) return;
       if (!current) {
         throw new Error("That payment method is no longer available.");
       }
       options = result.payment_options;
-      await preparePayment(current);
+      await preparePayment(current, currentPreparation);
     } catch (err) {
+      if (currentPreparation !== preparationId) return;
       error = messageFromError(err, "Couldn't start that payment method.");
       initializing = false;
     }
   }
 
-  async function preparePayment(option: PaymentOption) {
+  async function preparePayment(
+    option: PaymentOption,
+    currentPreparation = ++preparationId,
+  ) {
     const cartId = cart.get()?.id;
     if (!cartId) return;
 
-    const currentPreparation = ++preparationId;
+    if (currentPreparation !== preparationId) return;
     paymentElement?.destroy();
     paymentElement = null;
     elements = null;
@@ -200,8 +220,15 @@
         if (!stripe || !elements) {
           throw new Error("The Stripe payment form is not ready.");
         }
+        sessionStorage.setItem(
+          STRIPE_PENDING_KEY,
+          JSON.stringify({ cart_id: cartId, session_id: session.id }),
+        );
         const { error: stripeError } = await stripe.confirmPayment({
           elements,
+          confirmParams: {
+            return_url: `${window.location.origin}${window.location.pathname}?step=payment&stripe=true`,
+          },
           redirect: "if_required",
         });
         if (stripeError) {
@@ -241,7 +268,12 @@
     const result = await completeCart(cartId);
     if (result.type === "order" && result.order) {
       const orderId = (result.order as { id: string }).id;
+      const email = cart.get()?.email;
+      if (email) {
+        sessionStorage.setItem(`${ORDER_TRACKING_EMAIL_PREFIX}${orderId}`, email);
+      }
       sessionStorage.removeItem(CASHFREE_PENDING_KEY);
+      sessionStorage.removeItem(STRIPE_PENDING_KEY);
       clearCart();
       window.location.href = `/order/${orderId}`;
       return;
@@ -303,6 +335,23 @@
     };
     if (pending.cart_id !== cartId || !pending.session_id) {
       throw new Error("The Cashfree payment does not match this cart.");
+    }
+
+    await confirmPaymentSession(pending.session_id);
+    await finishOrder(cartId);
+  }
+
+  async function resumeStripePayment(cartId: string) {
+    const raw = sessionStorage.getItem(STRIPE_PENDING_KEY);
+    if (!raw) {
+      throw new Error("The Stripe payment session has expired.");
+    }
+    const pending = JSON.parse(raw) as {
+      cart_id?: string;
+      session_id?: string;
+    };
+    if (pending.cart_id !== cartId || !pending.session_id) {
+      throw new Error("The Stripe payment does not match this cart.");
     }
 
     await confirmPaymentSession(pending.session_id);
@@ -378,6 +427,7 @@
   function clearPaymentReturnParams() {
     const url = new URL(window.location.href);
     url.searchParams.delete("cashfree");
+    url.searchParams.delete("stripe");
     url.searchParams.delete("order_id");
     url.searchParams.delete("step");
     window.history.replaceState({}, "", url);
@@ -397,7 +447,7 @@
   </div>
 
   {#if options.length > 0}
-    <fieldset disabled={placing}>
+    <fieldset disabled={placing || initializing}>
       <legend class="sr-only">Payment method</legend>
       <div class="grid gap-3 sm:grid-cols-2">
         {#each options as option (option.provider_id)}
