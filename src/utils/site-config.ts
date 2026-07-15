@@ -29,6 +29,14 @@ const envDefaults = (): SiteConfig => ({
 // Fetches the public site-config JSON and overlays it on the env-based
 // defaults. Any failure (network error, timeout, non-2xx, bad JSON, schema
 // mismatch) falls back to the env defaults exactly — never throws.
+//
+// Falling back is intentional (a storefront should stay up even if the
+// config endpoint is down), but doing so *silently* turns a misconfigured
+// or unreachable `PUBLIC_SITE_CONFIG_URL` into an invisible failure — the
+// storefront just quietly renders defaults (no hero, generic store name)
+// forever, with nothing in the logs to explain why. Log every fallback
+// path so a bad URL/outage is diagnosable from server logs instead of
+// looking like "the feature doesn't work".
 const fetchSiteConfig = async (): Promise<SiteConfig> => {
   const defaults = envDefaults();
 
@@ -37,7 +45,12 @@ const fetchSiteConfig = async (): Promise<SiteConfig> => {
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     });
 
-    if (!response.ok) return defaults;
+    if (!response.ok) {
+      console.error(
+        `[site-config] GET ${config.siteConfigUrl} returned ${response.status}; falling back to env defaults.`
+      );
+      return defaults;
+    }
 
     const overlay = SiteConfigOverlayResult.parse(await response.json());
 
@@ -48,7 +61,11 @@ const fetchSiteConfig = async (): Promise<SiteConfig> => {
       heroHeading: overlay.heroHeading || defaults.heroHeading,
       heroSubheading: overlay.heroSubheading || defaults.heroSubheading,
     };
-  } catch {
+  } catch (error) {
+    console.error(
+      `[site-config] Failed to fetch/parse ${config.siteConfigUrl}; falling back to env defaults.`,
+      error
+    );
     return defaults;
   }
 };
