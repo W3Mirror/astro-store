@@ -6,6 +6,7 @@ import NotFoundLayout from "../../layouts/NotFoundLayout.astro";
 import ResponsiveImage from "../../components/ResponsiveImage.svelte";
 import Money from "../../components/Money.svelte";
 import ClearCartOnMount from "../../components/checkout/ClearCartOnMount.svelte";
+import OrderTracking from "../../components/order/OrderTracking.svelte";
 
 const { id } = Astro.params;
 
@@ -34,6 +35,7 @@ const addressLines = [
   address?.country_code?.toUpperCase(),
   address?.phone,
 ].filter(Boolean);
+
 ---
 
 {
@@ -181,6 +183,8 @@ const addressLines = [
               )}
             </div>
           </div>
+
+          {id && <OrderTracking orderId={id} client:load />}
 
           <div class="mt-10 text-center">
             <a
