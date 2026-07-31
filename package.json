@@ -15,7 +15,8 @@
     "astro": "astro",
     "typecheck": "tsc --noEmit",
     "test:first-paint": "node --test scripts/first-paint.test.mjs",
-    "test:seo": "node --test scripts/seo-contract.test.mjs"
+    "test:seo": "node --test scripts/seo-contract.test.mjs",
+    "test:customer-account": "node --test scripts/customer-account.test.mjs"
   },
   "dependencies": {
     "@astrojs/cloudflare": "^12.6.13",

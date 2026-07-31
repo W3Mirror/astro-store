@@ -13,6 +13,7 @@ import ProductReviews from "../../components/ProductReviews.astro";
 import ProductAccordions from "../../components/ProductAccordions.astro";
 import { getSiteConfig } from "../../utils/site-config";
 import { getProductSeo } from "../../utils/seo";
+import WishlistControl from "../../components/account/WishlistControl.astro";
 
 const { handle } = Astro.params;
 const product = await getProductByHandle({ handle: handle || "" });
@@ -96,6 +97,10 @@ setCache.short(Astro);
                 variantId={firstVariant?.id}
                 variantQuantityAvailable={variantQuantityAvailable}
                 variantAvailableForSale={variantAvailableForSale}
+              />
+              <WishlistControl
+                productId={product.id}
+                returnTo={`/products/${product.handle}`}
               />
             </div>
 
