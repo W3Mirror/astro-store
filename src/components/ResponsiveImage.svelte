@@ -7,6 +7,7 @@
     alt?: string;
     classList?: string;
     loading?: "lazy" | "eager";
+    fetchpriority?: "high" | "low" | "auto";
     sizes?: string;
   }
 
@@ -15,7 +16,8 @@
     alt = "",
     classList = "",
     loading = "lazy",
-    sizes
+    sizes,
+    fetchpriority = "auto"
   }: Props = $props();
 </script>
 
@@ -28,6 +30,8 @@
     alt={alt || "Product image"}
     class={classList}
     {loading}
+    {fetchpriority}
+    decoding="async"
     {sizes}
   />
 {:else}

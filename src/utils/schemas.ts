@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { storefrontPresets } from "./store-presets";
 
 export const configSchema = z.object({
   medusaBackendUrl: z.string(),
@@ -28,6 +29,7 @@ export const SiteConfigOverlayResult = z.object({
   announcementMessage: z.string().nullable().optional(),
   heroHeading: z.string().nullable().optional(),
   heroSubheading: z.string().nullable().optional(),
+  storefrontPreset: z.enum(storefrontPresets).nullable().optional(),
 });
 
 // Medusa calculated price set (see `variant.calculated_price` on /store/products

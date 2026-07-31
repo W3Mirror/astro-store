@@ -8,8 +8,9 @@ import Money from "./Money.svelte";
 
 export interface Props {
   product: z.infer<typeof ProductResult>;
+  priority?: boolean;
 }
-const { product } = Astro.props as Props;
+const { product, priority = false } = Astro.props as Props;
 const featuredImage = product?.thumbnail
   ? { url: product.thumbnail }
   : (product?.images?.[0] ?? null);
@@ -18,12 +19,13 @@ const price = toMoney(product?.variants?.[0]?.calculated_price);
 
 <a
   href={`/products/${product?.handle}`}
-  class="group overflow-hidden rounded-lg border-l-orange-100 shadow hover:shadow-md"
+  class="product-card group overflow-hidden rounded-lg"
 >
   <div class="relative">
     <ResponsiveImage
       classList=""
-      loading="eager"
+      loading={priority ? "eager" : "lazy"}
+      fetchpriority={priority ? "high" : "auto"}
       image={featuredImage}
       alt={product?.title}
       sizes={`
@@ -59,7 +61,7 @@ const price = toMoney(product?.variants?.[0]?.calculated_price);
       </button>
     </div>
   </div>
-  <div class="flex justify-between py-6 px-5 text-zinc-700">
+  <div class="product-card__copy flex justify-between px-5 py-6">
     <h3 class="group-hover:underline">{product?.title}</h3>
     <p class="font-bold">
       <Money price={price} />
