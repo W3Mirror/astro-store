@@ -43,14 +43,6 @@ export const SiteConfigOverlayResult = z.object({
         indexable: z.boolean(),
       }),
       reviewStatus: z.enum(["draft", "approved"]),
-      productMetadata: z.array(
-        z.object({
-          productId: z.string(),
-          handle: z.string(),
-          title: z.string(),
-          description: z.string(),
-        }),
-      ),
     })
     .nullable()
     .optional(),

@@ -1,4 +1,4 @@
-import type { SeoConfig, SiteConfig } from "./site-config";
+import type { SiteConfig } from "./site-config";
 
 export function getHomepageSeo(siteConfig: SiteConfig) {
   return {
@@ -11,7 +11,6 @@ export function getHomepageSeo(siteConfig: SiteConfig) {
 }
 
 export function getProductSeo(
-  seo: SeoConfig | null,
   product: {
     id: string;
     handle: string;
@@ -20,19 +19,10 @@ export function getProductSeo(
   },
   storeName: string,
 ) {
-  const saved = seo?.productMetadata.find(
-    (entry) =>
-      entry.productId === product.id || entry.handle === product.handle,
-  );
   return {
-    title: saved?.title || `${product.title} | ${storeName}`,
+    title: `${product.title} | ${storeName}`,
     description:
-      saved?.description ||
       product.description?.slice(0, 180) ||
       `Shop ${product.title} from ${storeName}.`,
   };
-}
-
-export function serializeJsonLd(value: unknown): string {
-  return JSON.stringify(value).replace(/</g, "\\u003c");
 }

@@ -30,12 +30,6 @@ export interface SeoConfig {
     socialImage: string;
     indexable: boolean;
   };
-  productMetadata: {
-    productId: string;
-    handle: string;
-    title: string;
-    description: string;
-  }[];
 }
 
 const TTL_MS = 30_000;
@@ -92,7 +86,6 @@ const fetchSiteConfig = async (): Promise<SiteConfig> => {
         overlay.seo?.reviewStatus === "approved"
           ? {
               profile: overlay.seo.profile,
-              productMetadata: overlay.seo.productMetadata,
             }
           : null,
     };

@@ -24,9 +24,7 @@ if (!product) {
 
 const firstVariant = product?.variants?.[0];
 const price = toMoney(firstVariant?.calculated_price);
-const seo = product
-  ? getProductSeo(siteConfig.seo, product, siteConfig.storeName)
-  : null;
+const seo = product ? getProductSeo(product, siteConfig.storeName) : null;
 // If inventory isn't tracked (or backorders are allowed), treat the variant
 // as having unlimited stock.
 const variantQuantityAvailable =
