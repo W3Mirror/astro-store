@@ -40,6 +40,7 @@
 
   const CASHFREE_PENDING_KEY = "medusa_cashfree_payment";
   const STRIPE_PENDING_KEY = "medusa_stripe_payment";
+  const PAYU_PENDING_KEY = "medusa_payu_payment";
   const ORDER_TRACKING_EMAIL_PREFIX = "medusa_order_tracking_email:";
 
   let { onBack }: Props = $props();
@@ -89,6 +90,18 @@
         return;
       } catch (err) {
         error = messageFromError(err, "Couldn't verify the Stripe payment.");
+        placing = false;
+        clearPaymentReturnParams();
+      }
+    }
+
+    if (new URLSearchParams(window.location.search).get("payu") === "true") {
+      try {
+        placing = true;
+        await resumePayUPayment(cartId);
+        return;
+      } catch (err) {
+        error = messageFromError(err, "Couldn't verify the PayU payment.");
         placing = false;
         clearPaymentReturnParams();
       }
@@ -161,6 +174,18 @@
     const updatedCollection = await createPaymentSession(
       paymentCollection.id,
       option.provider_id,
+      {
+        return_url: window.location.href.split("?")[0],
+        firstname: [
+          cart.get()?.shipping_address?.first_name,
+          cart.get()?.shipping_address?.last_name,
+        ]
+          .filter(Boolean)
+          .join(" "),
+        email: cart.get()?.email,
+        phone: cart.get()?.shipping_address?.phone,
+        productinfo: "Store order",
+      },
     );
     const nextSession = updatedCollection?.payment_sessions?.find(
       (candidate) => candidate.provider_id === option.provider_id,
@@ -254,6 +279,11 @@
         return;
       }
 
+      if (selectedOption.provider === "payu") {
+        openPayUCheckout(cartId, session);
+        return;
+      }
+
       await finishOrder(cartId);
     } catch (err) {
       error = messageFromError(
@@ -274,6 +304,7 @@
       }
       sessionStorage.removeItem(CASHFREE_PENDING_KEY);
       sessionStorage.removeItem(STRIPE_PENDING_KEY);
+      sessionStorage.removeItem(PAYU_PENDING_KEY);
       clearCart();
       window.location.href = `/order/${orderId}`;
       return;
@@ -358,6 +389,42 @@
     await finishOrder(cartId);
   }
 
+  async function resumePayUPayment(cartId: string) {
+    const raw = sessionStorage.getItem(PAYU_PENDING_KEY);
+    if (!raw) throw new Error("The PayU payment session has expired.");
+    const pending = JSON.parse(raw) as { cart_id?: string; session_id?: string };
+    if (pending.cart_id !== cartId || !pending.session_id) {
+      throw new Error("The PayU payment does not match this cart.");
+    }
+    await confirmPaymentSession(pending.session_id);
+    await finishOrder(cartId);
+  }
+
+  function openPayUCheckout(cartId: string, paymentSession: PaymentSession) {
+    const checkoutUrl = paymentSession.data.checkout_url;
+    const fields = paymentSession.data.fields;
+    if (typeof checkoutUrl !== "string" || !fields || typeof fields !== "object") {
+      throw new Error("PayU did not return a valid checkout session.");
+    }
+    sessionStorage.setItem(
+      PAYU_PENDING_KEY,
+      JSON.stringify({ cart_id: cartId, session_id: paymentSession.id }),
+    );
+    const form = document.createElement("form");
+    form.method = "POST";
+    form.action = checkoutUrl;
+    for (const [name, value] of Object.entries(fields as Record<string, unknown>)) {
+      if (value === undefined || value === null) continue;
+      const input = document.createElement("input");
+      input.type = "hidden";
+      input.name = name;
+      input.value = String(value);
+      form.appendChild(input);
+    }
+    document.body.appendChild(form);
+    form.submit();
+  }
+
   async function openRazorpayCheckout(
     option: PaymentOption,
     paymentSession: PaymentSession,
@@ -428,6 +495,7 @@
     const url = new URL(window.location.href);
     url.searchParams.delete("cashfree");
     url.searchParams.delete("stripe");
+    url.searchParams.delete("payu");
     url.searchParams.delete("order_id");
     url.searchParams.delete("step");
     window.history.replaceState({}, "", url);
@@ -493,6 +561,11 @@
     {:else if selectedOption?.provider === "razorpay" && !initializing}
       <p class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-zinc-600">
         Razorpay will open a secure checkout window to complete your payment.
+      </p>
+    {:else if selectedOption?.provider === "payu" && !initializing}
+      <p class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-zinc-600">
+        You will continue to PayU to authorize this payment, then return here
+        automatically.
       </p>
     {:else if selectedOption?.provider === "manual" && !initializing}
       <p class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-zinc-600">
