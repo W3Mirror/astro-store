@@ -6,16 +6,39 @@ import Products from "../components/Products.astro";
 import { setCache } from "../utils/cache";
 import { getSiteConfig } from "../utils/site-config";
 import { getPresetHeroDefaults } from "../utils/store-presets";
+import { getHomepageSeo } from "../utils/seo";
 
 const siteConfig = await getSiteConfig();
-const title = siteConfig.storeName;
+const seo = getHomepageSeo(siteConfig);
 const products = await getProducts({});
 const heroDefaults = getPresetHeroDefaults(siteConfig.storefrontPreset);
 
 setCache.long(Astro);
 ---
 
-<BaseLayout title={title}>
+<BaseLayout
+  title={seo.title}
+  description={seo.description}
+  image={seo.image}
+  canonicalPath="/"
+  jsonLd={[
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      name: siteConfig.seo?.profile.organizationName || siteConfig.storeName,
+      description:
+        siteConfig.seo?.profile.organizationDescription || seo.description,
+      url: new URL("/", Astro.url.origin).toString(),
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      name: siteConfig.storeName,
+      url: new URL("/", Astro.url.origin).toString(),
+      description: seo.description,
+    },
+  ]}
+>
   <Hero
     heading={siteConfig.heroHeading || heroDefaults.heading}
     subheading={siteConfig.heroSubheading || heroDefaults.subheading}

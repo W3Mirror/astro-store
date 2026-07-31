@@ -30,6 +30,22 @@ export const SiteConfigOverlayResult = z.object({
   heroHeading: z.string().nullable().optional(),
   heroSubheading: z.string().nullable().optional(),
   storefrontPreset: z.enum(storefrontPresets).nullable().optional(),
+  seo: z
+    .object({
+      profile: z.object({
+        homeTitle: z.string(),
+        homeDescription: z.string(),
+        organizationName: z.string(),
+        organizationDescription: z.string(),
+        about: z.string(),
+        faqs: z.array(z.object({ question: z.string(), answer: z.string() })),
+        socialImage: z.string(),
+        indexable: z.boolean(),
+      }),
+      reviewStatus: z.enum(["draft", "approved"]),
+    })
+    .nullable()
+    .optional(),
 });
 
 // Medusa calculated price set (see `variant.calculated_price` on /store/products

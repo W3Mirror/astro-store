@@ -14,7 +14,8 @@
     "deploy": "wrangler deploy",
     "astro": "astro",
     "typecheck": "tsc --noEmit",
-    "test:first-paint": "node --test scripts/first-paint.test.mjs"
+    "test:first-paint": "node --test scripts/first-paint.test.mjs",
+    "test:seo": "node --test scripts/seo-contract.test.mjs"
   },
   "dependencies": {
     "@astrojs/cloudflare": "^12.6.13",

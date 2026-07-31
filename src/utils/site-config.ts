@@ -16,6 +16,20 @@ export interface SiteConfig {
   heroHeading: string;
   heroSubheading: string;
   storefrontPreset: StorefrontPreset;
+  seo: SeoConfig | null;
+}
+
+export interface SeoConfig {
+  profile: {
+    homeTitle: string;
+    homeDescription: string;
+    organizationName: string;
+    organizationDescription: string;
+    about: string;
+    faqs: { question: string; answer: string }[];
+    socialImage: string;
+    indexable: boolean;
+  };
 }
 
 const TTL_MS = 30_000;
@@ -30,6 +44,7 @@ const envDefaults = (): SiteConfig => ({
   heroHeading: "",
   heroSubheading: "",
   storefrontPreset: defaultStorefrontPreset,
+  seo: null,
 });
 
 // Fetches the public site-config JSON and overlays it on the env-based
@@ -67,6 +82,12 @@ const fetchSiteConfig = async (): Promise<SiteConfig> => {
       heroHeading: overlay.heroHeading || defaults.heroHeading,
       heroSubheading: overlay.heroSubheading || defaults.heroSubheading,
       storefrontPreset: overlay.storefrontPreset || defaults.storefrontPreset,
+      seo:
+        overlay.seo?.reviewStatus === "approved"
+          ? {
+              profile: overlay.seo.profile,
+            }
+          : null,
     };
   } catch (error) {
     console.error(
