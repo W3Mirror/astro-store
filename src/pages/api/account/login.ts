@@ -1,4 +1,5 @@
 import type { APIRoute } from "astro";
+import { rejectCrossOriginAccountMutation } from "../../../utils/account-mutation-security.js";
 import {
   accountErrorRedirect,
   customerRequest,
@@ -7,6 +8,8 @@ import {
 } from "../../../utils/customer-account";
 
 export const POST: APIRoute = async ({ request, cookies, redirect }) => {
+  const originError = rejectCrossOriginAccountMutation(request);
+  if (originError) return originError;
   const form = await request.formData();
   try {
     const { token } = await customerRequest<{ token: string }>(
