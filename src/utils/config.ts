@@ -8,6 +8,8 @@ const defineConfig = {
   storeName: import.meta.env.PUBLIC_STORE_NAME,
   announcementMessage: import.meta.env.PUBLIC_ANNOUNCEMENT_MESSAGE,
   siteConfigUrl: import.meta.env.PUBLIC_SITE_CONFIG_URL,
+  customerEngagementEnabled:
+    import.meta.env.PUBLIC_CUSTOMER_ENGAGEMENT_ENABLED === "true",
 };
 
 export const config = configSchema.parse(defineConfig);

@@ -1,8 +1,10 @@
 ---
 import CartIcon from "./CartIcon.svelte";
 import { getSiteConfig } from "../utils/site-config";
+import { getCustomerToken } from "../utils/customer-account";
 
 const siteConfig = await getSiteConfig();
+const signedIn = Boolean(getCustomerToken(Astro.cookies));
 ---
 
 <header class="store-header sticky top-0 z-40">
@@ -14,7 +16,13 @@ const siteConfig = await getSiteConfig();
         </span>
       </a>
       <div></div>
-      <div class="justify-self-end">
+      <div class="flex items-center gap-4 justify-self-end">
+        <a
+          class="text-sm font-semibold"
+          href={signedIn ? "/account" : "/account/login"}
+          aria-label={signedIn ? "Your account" : "Sign in"}
+          >{signedIn ? "Account" : "Sign in"}</a
+        >
         <CartIcon client:idle />
       </div>
     </nav>

@@ -85,6 +85,14 @@
 }
 
 @layer components {
+  .account-card {
+    @apply rounded-[var(--store-radius)] border border-[var(--store-line)] bg-[var(--store-surface)] p-6 shadow-[var(--store-shadow)];
+  }
+
+  .account-input {
+    @apply mt-2 block w-full rounded-lg border border-[var(--store-line)] bg-transparent px-3 py-2.5 text-base transition outline-none focus:border-[var(--store-accent)] focus:ring-2 focus:ring-[var(--store-accent)]/10;
+  }
+
   :root {
     --store-canvas: #faf9f6;
     --store-surface: rgb(250 249 246 / 88%);
