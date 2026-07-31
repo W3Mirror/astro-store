@@ -5,15 +5,20 @@ import Hero from "../components/Hero.astro";
 import Products from "../components/Products.astro";
 import { setCache } from "../utils/cache";
 import { getSiteConfig } from "../utils/site-config";
+import { getPresetHeroDefaults } from "../utils/store-presets";
 
 const siteConfig = await getSiteConfig();
 const title = siteConfig.storeName;
 const products = await getProducts({});
+const heroDefaults = getPresetHeroDefaults(siteConfig.storefrontPreset);
 
-setCache.short(Astro);
+setCache.long(Astro);
 ---
 
 <BaseLayout title={title}>
-  <Hero heading={siteConfig.heroHeading} subheading={siteConfig.heroSubheading} />
+  <Hero
+    heading={siteConfig.heroHeading || heroDefaults.heading}
+    subheading={siteConfig.heroSubheading || heroDefaults.subheading}
+  />
   <Products products={products} />
 </BaseLayout>

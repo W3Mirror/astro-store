@@ -10,12 +10,19 @@ export interface Props {
 const { products } = Astro.props as Props;
 ---
 
-<section>
+<section id="featured-products" class="products-section">
   <div class="container py-16 sm:py-20">
-    <h2 class="sr-only">Products</h2>
+    <div class="products-section__heading">
+      <p>Selected for you</p>
+      <h2>Featured collection</h2>
+    </div>
 
-    <div class="grid gap-12 md:grid-cols-2 lg:grid-cols-3">
-      {products.map((product) => <ProductCard product={product} />)}
+    <div class="products-grid grid gap-12 md:grid-cols-2 lg:grid-cols-3">
+      {
+        products.map((product, index) => (
+          <ProductCard product={product} priority={index === 0} />
+        ))
+      }
     </div>
   </div>
 </section>

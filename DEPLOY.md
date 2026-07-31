@@ -47,7 +47,7 @@ when `astro build` runs — they are not read from `wrangler.jsonc` `vars` or
 | Script                | What it does                                                                                                                                                     |
 | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `bun run dev`         | `astro dev` — local dev server, Node runtime.                                                                                                                    |
-| `bun run preview:dev` | Same as `dev`; plain `astro dev --host --port 3000`, no Cloudflare runtime emulation. Used by the sandbox-preview flow below.                                   |
+| `bun run preview:dev` | Same as `dev`; plain `astro dev --host --port 3000`, no Cloudflare runtime emulation. Used by the sandbox-preview flow below.                                    |
 | `bun run build`       | `astro build` — same as `build:cf` today; kept for parity with the Astro convention.                                                                             |
 | `bun run build:cf`    | `astro build` targeting the Cloudflare adapter (`output: "server"`, `adapter: cloudflare()`). Produces `dist/_worker.js/index.js` + static assets under `dist/`. |
 | `bun run preview`     | `wrangler dev` — runs the built Worker against local `workerd`, with `platformProxy` emulating bindings (`ASSETS`, KV). Run `build:cf` first.                    |
@@ -55,8 +55,8 @@ when `astro build` runs — they are not read from `wrangler.jsonc` `vars` or
 
 ## Vercel build target
 
-| Script                | What it does                                                                                                                                                  |
-| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Script                 | What it does                                                                                                                                                                                                       |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `bun run build:vercel` | `astro build --config astro.config.vercel.mjs` — same `output: "server"` SSR mode, `@astrojs/vercel` adapter. Produces `.vercel/output` (Build Output API v3: `static/`, `functions/_render.func`, `config.json`). |
 
 Kept as a separate config file (`astro.config.vercel.mjs`), not an
@@ -72,7 +72,16 @@ as the Cloudflare path, then ships `.vercel/output` with
 `vercel deploy --prebuilt` — no Vercel build minutes consumed. The
 runtime-fetched `PUBLIC_SITE_CONFIG_URL` overlay (`src/utils/site-config.ts`)
 uses plain `fetch` and needs no adapter-specific code; it works unmodified
-in Vercel's Node serverless functions.
+in Vercel's Node serverless functions. The allow-listed overlay also accepts
+`storefrontPreset` (`minimal`, `editorial`, or `conversion`); missing or invalid
+values resolve to `minimal`, so older store configs remain compatible.
+
+## First-paint contract
+
+The home response is edge-cacheable for 60 seconds, cart islands hydrate on
+`client:idle`, and only the first catalog image is eager/high-priority. Keep
+these guarantees measurable with `pnpm test:first-paint`; run it alongside
+`pnpm typecheck` and both production builds when changing the home page.
 
 ## Sandbox-preview flow (Vercel Sandbox)
 

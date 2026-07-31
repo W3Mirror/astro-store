@@ -16,7 +16,7 @@ const defaultDesc = `Shop online at ${siteConfig.storeName}.`;
 const { title, description = defaultDesc } = Astro.props as Props;
 ---
 
-<html lang="en">
+<html lang="en" data-storefront-preset={siteConfig.storefrontPreset}>
   <head>
     <meta charset="utf-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />

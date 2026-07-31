@@ -1,5 +1,9 @@
 import { SiteConfigOverlayResult } from "./schemas";
 import { config } from "./config";
+import {
+  defaultStorefrontPreset,
+  type StorefrontPreset,
+} from "./store-presets";
 
 // The effective, per-request store configuration: env-based defaults
 // (`config.storeName`, `config.announcementMessage`) overlaid with values
@@ -11,6 +15,7 @@ export interface SiteConfig {
   announcementMessage: string;
   heroHeading: string;
   heroSubheading: string;
+  storefrontPreset: StorefrontPreset;
 }
 
 const TTL_MS = 30_000;
@@ -24,6 +29,7 @@ const envDefaults = (): SiteConfig => ({
   announcementMessage: config.announcementMessage,
   heroHeading: "",
   heroSubheading: "",
+  storefrontPreset: defaultStorefrontPreset,
 });
 
 // Fetches the public site-config JSON and overlays it on the env-based
@@ -47,7 +53,7 @@ const fetchSiteConfig = async (): Promise<SiteConfig> => {
 
     if (!response.ok) {
       console.error(
-        `[site-config] GET ${config.siteConfigUrl} returned ${response.status}; falling back to env defaults.`
+        `[site-config] GET ${config.siteConfigUrl} returned ${response.status}; falling back to env defaults.`,
       );
       return defaults;
     }
@@ -60,11 +66,12 @@ const fetchSiteConfig = async (): Promise<SiteConfig> => {
         overlay.announcementMessage ?? defaults.announcementMessage,
       heroHeading: overlay.heroHeading || defaults.heroHeading,
       heroSubheading: overlay.heroSubheading || defaults.heroSubheading,
+      storefrontPreset: overlay.storefrontPreset || defaults.storefrontPreset,
     };
   } catch (error) {
     console.error(
       `[site-config] Failed to fetch/parse ${config.siteConfigUrl}; falling back to env defaults.`,
-      error
+      error,
     );
     return defaults;
   }

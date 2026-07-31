@@ -13,7 +13,8 @@
     "preview:dev": "astro dev --host --port 3000",
     "deploy": "wrangler deploy",
     "astro": "astro",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:first-paint": "node --test scripts/first-paint.test.mjs"
   },
   "dependencies": {
     "@astrojs/cloudflare": "^12.6.13",
