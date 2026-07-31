@@ -11,9 +11,12 @@ import ProductInformations from "../../components/ProductInformations.astro";
 import ProductRecommendations from "../../components/ProductRecommendations.astro";
 import ProductReviews from "../../components/ProductReviews.astro";
 import ProductAccordions from "../../components/ProductAccordions.astro";
+import { getSiteConfig } from "../../utils/site-config";
+import { getProductSeo } from "../../utils/seo";
 
 const { handle } = Astro.params;
 const product = await getProductByHandle({ handle: handle || "" });
+const siteConfig = await getSiteConfig();
 
 if (!product) {
   Astro.response.status = 404;
@@ -21,6 +24,9 @@ if (!product) {
 
 const firstVariant = product?.variants?.[0];
 const price = toMoney(firstVariant?.calculated_price);
+const seo = product
+  ? getProductSeo(siteConfig.seo, product, siteConfig.storeName)
+  : null;
 // If inventory isn't tracked (or backorders are allowed), treat the variant
 // as having unlimited stock.
 const variantQuantityAvailable =
@@ -37,22 +43,54 @@ setCache.short(Astro);
   !product ? (
     <NotFoundLayout title="Product not found" message="Product not found" />
   ) : (
-    <BaseLayout title={product.title}>
+    <BaseLayout
+      title={seo?.title || product.title}
+      description={seo?.description}
+      canonicalPath={`/products/${product.handle}`}
+      image={product.thumbnail || product.images[0]?.url}
+      type="product"
+      jsonLd={{
+        "@context": "https://schema.org",
+        "@type": "Product",
+        name: product.title,
+        description: product.description || seo?.description,
+        image: product.images.map((image) => image?.url).filter(Boolean),
+        sku: firstVariant?.sku || undefined,
+        url: new URL(
+          `/products/${product.handle}`,
+          Astro.url.origin,
+        ).toString(),
+        offers: price
+          ? {
+              "@type": "Offer",
+              price: price.amount,
+              priceCurrency: price.currency_code.toUpperCase(),
+              availability: variantAvailableForSale
+                ? "https://schema.org/InStock"
+                : "https://schema.org/OutOfStock",
+              url: new URL(
+                `/products/${product.handle}`,
+                Astro.url.origin,
+              ).toString(),
+            }
+          : undefined,
+      }}
+    >
       <div class="container pt-6">
         <ProductBreadcrumb title={product.title} />
       </div>
 
       <section class="container">
-        <div class="pb-16 pt-6 lg:grid lg:grid-cols-12 lg:gap-20">
+        <div class="pt-6 pb-16 lg:grid lg:grid-cols-12 lg:gap-20">
           <div class="lg:col-span-7">
-            <ProductImageGallery images={product.images} title={product.title} />
+            <ProductImageGallery
+              images={product.images}
+              title={product.title}
+            />
           </div>
 
           <div class="mt-8 lg:col-span-5 lg:mt-0">
-            <ProductInformations
-              title={product.title}
-              price={price}
-            />
+            <ProductInformations title={product.title} price={price} />
 
             <div>
               <AddToCartForm
