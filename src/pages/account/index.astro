@@ -1,0 +1,354 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import AccountNav from "../../components/account/AccountNav.astro";
+import Money from "../../components/Money.svelte";
+import { config } from "../../utils/config";
+import {
+  clearCustomerToken,
+  customerRequest,
+  getCustomerToken,
+  type CustomerAddress,
+  type StoreCustomer,
+} from "../../utils/customer-account";
+
+const token = getCustomerToken(Astro.cookies);
+if (!token) return Astro.redirect("/account/login");
+
+type Order = {
+  id: string;
+  display_id?: number;
+  created_at?: string;
+  status?: string;
+  total?: number;
+  currency_code: string;
+};
+type Consent = { channel: string; status: string };
+let customer: StoreCustomer;
+let addresses: CustomerAddress[] = [];
+let orders: Order[] = [];
+let consents: Consent[] = [];
+try {
+  const [customerData, addressData, orderData] = await Promise.all([
+    customerRequest<{ customer: StoreCustomer }>("/store/customers/me", {
+      token,
+    }),
+    customerRequest<{ addresses: CustomerAddress[] }>(
+      "/store/customers/me/addresses",
+      { token },
+    ),
+    customerRequest<{ orders: Order[] }>(
+      "/store/orders?limit=50&order=-created_at",
+      { token },
+    ),
+  ]);
+  customer = customerData.customer;
+  addresses = addressData.addresses;
+  orders = orderData.orders;
+  if (config.customerEngagementEnabled) {
+    consents = (
+      await customerRequest<{ consents: Consent[] }>(
+        "/store/customers/me/engagement",
+        { token },
+      )
+    ).consents;
+  }
+} catch {
+  clearCustomerToken(Astro.cookies);
+  return Astro.redirect(
+    "/account/login?error=Your%20session%20expired.%20Please%20sign%20in%20again.",
+  );
+}
+const consentStatus = (channel: string) =>
+  consents.find((item) => item.channel === channel)?.status === "opted_in";
+const notice = Astro.url.searchParams.get("saved");
+const error = Astro.url.searchParams.get("error");
+---
+
+<BaseLayout title="Your account">
+  <section class="container py-12 lg:py-20">
+    <div class="mb-10 flex flex-wrap items-end justify-between gap-4">
+      <div>
+        <p
+          class="text-xs font-bold tracking-[0.22em] text-[var(--store-muted)] uppercase"
+        >
+          Your account
+        </p><h1 class="mt-2 text-4xl font-bold tracking-tight sm:text-5xl">
+          Hello, {customer.first_name || "there"}.
+        </h1>
+      </div>
+      <p class="text-sm text-[var(--store-muted)]">{customer.email}</p>
+    </div>
+    <AccountNav active="profile" />
+    {
+      notice && (
+        <p class="mb-6 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-900">
+          Your {notice} settings were saved.
+        </p>
+      )
+    }
+    {
+      error && (
+        <p
+          role="alert"
+          class="mb-6 rounded-lg bg-red-50 p-3 text-sm text-red-800"
+        >
+          {error}
+        </p>
+      )
+    }
+
+    <div class="grid gap-8 lg:grid-cols-2">
+      <section class="account-card">
+        <h2 class="text-xl font-bold">Profile</h2>
+        <form
+          class="mt-6 grid gap-4 sm:grid-cols-2"
+          action="/api/account/profile"
+          method="post"
+        >
+          <label class="text-sm font-semibold"
+            >First name<input
+              class="account-input"
+              name="first_name"
+              value={customer.first_name ?? ""}
+              required
+            /></label
+          >
+          <label class="text-sm font-semibold"
+            >Last name<input
+              class="account-input"
+              name="last_name"
+              value={customer.last_name ?? ""}
+              required
+            /></label
+          >
+          <label class="text-sm font-semibold sm:col-span-2"
+            >Phone<input
+              class="account-input"
+              name="phone"
+              value={customer.phone ?? ""}
+              autocomplete="tel"
+            /></label
+          >
+          <button class="button justify-self-start sm:col-span-2" type="submit"
+            >Save profile</button
+          >
+        </form>
+      </section>
+
+      {
+        config.customerEngagementEnabled && (
+          <section class="account-card">
+            <h2 class="text-xl font-bold">Marketing preferences</h2>
+            <p class="mt-2 text-sm text-[var(--store-muted)]">
+              Choose which reminders you want. Transactional order updates are
+              unaffected.
+            </p>
+            <form
+              class="mt-6 space-y-4"
+              action="/api/account/consent"
+              method="post"
+            >
+              <label class="flex items-start gap-3">
+                <>
+                  <input
+                    class="mt-1 size-4"
+                    type="checkbox"
+                    name="email"
+                    checked={consentStatus("email")}
+                  />
+                  <span>
+                    <>
+                      <strong class="block">Email</strong>
+                      <small class="text-[var(--store-muted)]">
+                        Welcome notes, wishlist reminders, and relevant offers.
+                      </small>
+                    </>
+                  </span>
+                </>
+              </label>
+              <label class="flex items-start gap-3">
+                <>
+                  <input
+                    class="mt-1 size-4"
+                    type="checkbox"
+                    name="whatsapp"
+                    checked={consentStatus("whatsapp")}
+                  />
+                  <span>
+                    <>
+                      <strong class="block">WhatsApp</strong>
+                      <small class="text-[var(--store-muted)]">
+                        Only when this store enables WhatsApp journeys.
+                      </small>
+                    </>
+                  </span>
+                </>
+              </label>
+              <button class="button" type="submit">
+                Save preferences
+              </button>
+            </form>
+          </section>
+        )
+      }
+    </div>
+
+    <section class="account-card mt-8">
+      <div class="flex items-center justify-between">
+        <h2 class="text-xl font-bold">Addresses</h2><span
+          class="text-sm text-[var(--store-muted)]"
+          >{addresses.length} saved</span>
+      </div>
+      <div class="mt-6 grid gap-4 sm:grid-cols-2">
+        {
+          addresses.map((address) => (
+            <article class="rounded-lg border border-[var(--store-line)] p-4 text-sm">
+              <>
+                <strong>
+                  {address.first_name} {address.last_name}
+                </strong>
+                <p class="mt-2 text-[var(--store-muted)]">
+                  {address.address_1}
+                  <br />
+                  {address.city}, {address.province} {address.postal_code}
+                  <br />
+                  {address.country_code?.toUpperCase()}
+                </p>
+                <form
+                  class="mt-3"
+                  action={`/api/account/addresses/${address.id}`}
+                  method="post"
+                >
+                  <button class="text-sm font-semibold underline" type="submit">
+                    Remove
+                  </button>
+                </form>
+              </>
+            </article>
+          ))
+        }
+      </div>
+      <form
+        class="mt-8 grid gap-4 md:grid-cols-4"
+        action="/api/account/address"
+        method="post"
+      >
+        <label class="text-sm font-semibold"
+          >First name<input
+            class="account-input"
+            name="first_name"
+            required
+          /></label
+        ><label class="text-sm font-semibold"
+          >Last name<input
+            class="account-input"
+            name="last_name"
+            required
+          /></label
+        >
+        <label class="text-sm font-semibold md:col-span-2"
+          >Address<input
+            class="account-input"
+            name="address_1"
+            autocomplete="address-line1"
+            required
+          /></label
+        >
+        <label class="text-sm font-semibold md:col-span-2"
+          >Address line 2<input
+            class="account-input"
+            name="address_2"
+            autocomplete="address-line2"
+          /></label
+        >
+        <label class="text-sm font-semibold"
+          >City<input
+            class="account-input"
+            name="city"
+            autocomplete="address-level2"
+            required
+          /></label
+        ><label class="text-sm font-semibold"
+          >State / province<input
+            class="account-input"
+            name="province"
+            autocomplete="address-level1"
+          /></label
+        >
+        <label class="text-sm font-semibold"
+          >Postal code<input
+            class="account-input"
+            name="postal_code"
+            autocomplete="postal-code"
+            required
+          /></label
+        ><label class="text-sm font-semibold"
+          >Country code<input
+            class="account-input"
+            name="country_code"
+            minlength="2"
+            maxlength="2"
+            placeholder="IN"
+            autocomplete="country"
+            required
+          /></label
+        >
+        <label class="text-sm font-semibold md:col-span-2"
+          >Phone<input
+            class="account-input"
+            name="phone"
+            autocomplete="tel"
+          /></label
+        ><button class="button self-end md:col-span-2" type="submit"
+          >Add address</button
+        >
+      </form>
+    </section>
+
+    <section class="account-card mt-8">
+      <div class="flex items-center justify-between">
+        <h2 class="text-xl font-bold">Order history</h2><span
+          class="text-sm text-[var(--store-muted)]"
+          >{orders.length} orders</span>
+      </div>
+      <div class="mt-6 divide-y divide-[var(--store-line)]">
+        {
+          orders.length === 0 ? (
+            <p class="py-8 text-sm text-[var(--store-muted)]">
+              Your completed orders will appear here.
+            </p>
+          ) : (
+            orders.map((order) => (
+              <a
+                class="grid gap-2 py-5 transition hover:pl-2 sm:grid-cols-4"
+                href={`/order/${order.id}`}
+              >
+                <>
+                  <strong>
+                    Order #{order.display_id ?? order.id.slice(-6)}
+                  </strong>
+                  <span class="text-sm text-[var(--store-muted)]">
+                    {order.created_at
+                      ? new Date(order.created_at).toLocaleDateString()
+                      : ""}
+                  </span>
+                  <span class="text-sm capitalize">
+                    {order.status ?? "placed"}
+                  </span>
+                  <span class="sm:text-right">
+                    <Money
+                      price={{
+                        amount: order.total ?? 0,
+                        currency_code: order.currency_code,
+                      }}
+                    />
+                  </span>
+                </>
+              </a>
+            ))
+          )
+        }
+      </div>
+    </section>
+  </section>
+</BaseLayout>

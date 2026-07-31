@@ -18,6 +18,7 @@ export const configSchema = z.object({
   // `utils/site-config.ts`). When unset, the store runs entirely on the
   // env-based defaults above.
   siteConfigUrl: z.string().optional().default(""),
+  customerEngagementEnabled: z.boolean().optional().default(false),
 });
 
 // Shape of the JSON served by the public per-project site-config endpoint.

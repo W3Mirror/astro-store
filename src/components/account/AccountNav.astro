@@ -1,0 +1,29 @@
+---
+const active = Astro.props.active as "profile" | "wishlist";
+---
+
+<nav
+  aria-label="Customer account"
+  class="mb-10 flex items-center gap-6 border-b border-[var(--store-line)] text-sm font-semibold"
+>
+  <a
+    class:list={[
+      "pb-3",
+      active === "profile" && "border-b-2 border-[var(--store-accent)]",
+    ]}
+    href="/account">Profile & orders</a
+  >
+  <a
+    class:list={[
+      "pb-3",
+      active === "wishlist" && "border-b-2 border-[var(--store-accent)]",
+    ]}
+    href="/account/wishlist">Wishlist</a
+  >
+  <form class="ml-auto pb-3" action="/api/account/logout" method="post">
+    <button
+      class="text-[var(--store-muted)] hover:text-[var(--store-ink)]"
+      type="submit">Sign out</button
+    >
+  </form>
+</nav>
