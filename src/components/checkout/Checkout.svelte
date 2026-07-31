@@ -37,7 +37,8 @@
     const params = new URLSearchParams(window.location.search);
     if (
       params.get("cashfree") === "true" ||
-      params.get("stripe") === "true"
+      params.get("stripe") === "true" ||
+      params.get("payu") === "true"
     ) {
       step = "payment";
     }

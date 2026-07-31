@@ -181,7 +181,7 @@ export const PaymentCollectionResult = z
   .nullable();
 
 export const PaymentOptionResult = z.object({
-  provider: z.enum(["stripe", "cashfree", "razorpay", "manual"]),
+  provider: z.enum(["stripe", "cashfree", "razorpay", "payu", "manual"]),
   provider_id: z.string(),
   name: z.string(),
   public_config: z.record(z.string(), z.unknown()).optional().default({}),
@@ -199,6 +199,8 @@ export const DeliveryTrackingEventResult = z.object({
   description: z.string(),
   location: z.string().optional(),
   occurred_at: z.string(),
+  raw_status: z.string().nullable().optional(),
+  raw_payload: z.record(z.string(), z.unknown()).optional(),
 });
 
 export const DeliveryTrackingSnapshotResult = z.object({
@@ -209,6 +211,8 @@ export const DeliveryTrackingSnapshotResult = z.object({
   estimated_delivery: z.string().optional(),
   updated_at: z.string(),
   events: z.array(DeliveryTrackingEventResult).optional().default([]),
+  raw_status: z.string().nullable().optional(),
+  raw_payload: z.record(z.string(), z.unknown()).optional(),
 });
 
 export const OrderTrackingResult = z.object({

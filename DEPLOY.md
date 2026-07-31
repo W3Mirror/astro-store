@@ -174,3 +174,13 @@ bun run preview             # wrangler dev, real workerd + ASSETS binding
 When `PUBLIC_SITE_CONFIG_URL` returns an approved `seo` profile, the runtime emits canonical, OpenGraph, Twitter, robots, sitemap, structured-data, About/FAQ, and `llms.txt` output. Draft profiles are not returned by ecomm-ai and therefore never affect a deployment.
 
 After deployment, verify `/robots.txt`, `/sitemap.xml`, `/llms.txt`, `/about`, `/faq` (when configured), homepage Organization/WebSite JSON-LD, and one product's Product JSON-LD. Canonical URLs use the request origin so the production Vercel domain or attached custom domain remains authoritative. Keep `PUBLIC_SITE_CONFIG_URL` reachable at runtime; the existing safe fallback keeps the store available but cannot supply project-specific metadata.
+
+# Provider runtime safety
+
+Payment and shipping credentials remain in the Medusa backend. The storefront
+receives only provider IDs, capability metadata, and explicitly public checkout
+configuration. PayU checkout posts the server-generated signed form directly to
+PayU and returns through the backend callback; no merchant salt is exposed.
+
+When enabling the launch provider matrix, add the storefront origin to the
+backend `STORE_CORS` so the PayU callback can perform its allowlisted redirect.
