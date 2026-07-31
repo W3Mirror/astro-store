@@ -1,0 +1,56 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { getSiteConfig } from "../utils/site-config";
+
+const siteConfig = await getSiteConfig();
+const faqs = siteConfig.seo?.profile.faqs || [];
+const jsonLd = faqs.length
+  ? {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      mainEntity: faqs.map((faq) => ({
+        "@type": "Question",
+        name: faq.question,
+        acceptedAnswer: { "@type": "Answer", text: faq.answer },
+      })),
+    }
+  : undefined;
+---
+
+<BaseLayout
+  title={`Frequently asked questions | ${siteConfig.storeName}`}
+  description={`Answers to common questions about ${siteConfig.storeName}.`}
+  canonicalPath="/faq"
+  jsonLd={jsonLd}
+>
+  <section class="container mx-auto max-w-3xl py-16 sm:py-24">
+    <p
+      class="text-xs font-semibold tracking-[0.2em] text-emerald-800 uppercase"
+    >
+      Useful answers
+    </p>
+    <h1
+      class="mt-3 text-4xl font-semibold tracking-tight text-zinc-900 sm:text-5xl"
+    >
+      Frequently asked questions
+    </h1>
+    {
+      faqs.length ? (
+        <dl class="mt-10 divide-y divide-zinc-200 border-y border-zinc-200">
+          {faqs.map((faq) => (
+            <div class="py-6">
+              <dt class="text-lg font-semibold text-zinc-900">
+                {faq.question}
+              </dt>
+              <dd class="mt-2 leading-7 text-zinc-700">{faq.answer}</dd>
+            </div>
+          ))}
+        </dl>
+      ) : (
+        <p class="mt-8 rounded-xl border border-dashed p-8 text-zinc-600">
+          No frequently asked questions have been published yet.
+        </p>
+      )
+    }
+  </section>
+</BaseLayout>

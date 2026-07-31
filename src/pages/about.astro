@@ -1,0 +1,30 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { getSiteConfig } from "../utils/site-config";
+
+const siteConfig = await getSiteConfig();
+const about =
+  siteConfig.seo?.profile.about || `Learn more about ${siteConfig.storeName}.`;
+---
+
+<BaseLayout
+  title={`About | ${siteConfig.storeName}`}
+  description={about.slice(0, 180)}
+  canonicalPath="/about"
+>
+  <article class="container mx-auto max-w-3xl py-16 sm:py-24">
+    <p
+      class="text-xs font-semibold tracking-[0.2em] text-emerald-800 uppercase"
+    >
+      Our store
+    </p>
+    <h1
+      class="mt-3 text-4xl font-semibold tracking-tight text-zinc-900 sm:text-5xl"
+    >
+      About {siteConfig.seo?.profile.organizationName || siteConfig.storeName}
+    </h1>
+    <p class="mt-8 text-lg leading-8 whitespace-pre-line text-zinc-700">
+      {about}
+    </p>
+  </article>
+</BaseLayout>

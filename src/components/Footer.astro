@@ -7,6 +7,19 @@ const year = new Date().getFullYear();
 
 <footer class="text-sm text-gray-600">
   <div class="container py-8">
-    <p>&copy; {year} {siteConfig.storeName}. All rights reserved.</p>
+    <div class="flex flex-wrap items-center justify-between gap-4">
+      <p>&copy; {year} {siteConfig.storeName}. All rights reserved.</p>
+      <nav aria-label="Store information" class="flex gap-4">
+        <a class="hover:text-emerald-900 hover:underline" href="/about">About</a
+        >
+        {
+          siteConfig.seo?.profile.faqs.length ? (
+            <a class="hover:text-emerald-900 hover:underline" href="/faq">
+              FAQ
+            </a>
+          ) : null
+        }
+      </nav>
+    </div>
   </div>
 </footer>
