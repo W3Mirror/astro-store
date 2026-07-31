@@ -14,6 +14,8 @@ import ProductAccordions from "../../components/ProductAccordions.astro";
 import { getSiteConfig } from "../../utils/site-config";
 import { getProductSeo } from "../../utils/seo";
 import WishlistControl from "../../components/account/WishlistControl.astro";
+import RecommendationSignal from "../../components/RecommendationSignal.svelte";
+import { config } from "../../utils/config";
 
 const { handle } = Astro.params;
 const product = await getProductByHandle({ handle: handle || "" });
@@ -110,6 +112,10 @@ setCache.short(Astro);
           </div>
         </div>
       </section>
+
+      {config.recommendationsEnabled && (
+        <RecommendationSignal client:load productId={product.id} />
+      )}
 
       <section class="container">
         <ProductReviews />

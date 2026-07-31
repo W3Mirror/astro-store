@@ -6,7 +6,10 @@ import {
   addCartLineItem,
   createCart,
   removeCartLineItem,
+  applyCartPromotion,
 } from "../utils/medusa";
+import { captureRecommendationSignal } from "../utils/recommendation-actor";
+import { config } from "../utils/config";
 import type { CartResult } from "../utils/schemas";
 
 // Cart drawer state (open or closed) with initial value (false) and no persistent state (local storage)
@@ -60,20 +63,66 @@ export async function initCart() {
 }
 
 // Add item to cart or create a new cart if it doesn't exist yet
-export async function addCartItem(item: { id: string; quantity: number }) {
+export async function addCartItem(item: {
+  id: string;
+  quantity: number;
+  promotionCode?: string;
+}) {
   const localCart = cart.get();
   const cartId = localCart?.id;
 
   isCartUpdating.set(true);
 
-  const cartData = cartId
+  let cartData = cartId
     ? await addCartLineItem(cartId, item.id, item.quantity)
     : await createCart(item.id, item.quantity);
 
   if (cartData) {
+    if (item.promotionCode) {
+      try {
+        const promotedCart = await applyCartPromotion(
+          cartData.id,
+          item.promotionCode,
+        );
+        if (!promotedCart) {
+          throw new Error("Medusa returned no cart after applying the code");
+        }
+        cartData = promotedCart;
+      } catch (error) {
+        cart.set(cartData);
+        isCartUpdating.set(false);
+        isCartDrawerOpen.set(true);
+        throw new Error(
+          `The item was added, but promotion ${item.promotionCode} could not be applied: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
     cart.set(cartData);
     isCartUpdating.set(false);
     isCartDrawerOpen.set(true);
+    if (config.recommendationsEnabled) {
+      const added = cartData.items?.find((line) => line.variant_id === item.id);
+      if (added?.product_id) {
+        const related = [
+          ...new Set(
+            (cartData.items ?? [])
+              .map((line) => line.product_id)
+              .filter(
+                (id): id is string =>
+                  typeof id === "string" && id !== added.product_id,
+              ),
+          ),
+        ].slice(0, 20);
+        void captureRecommendationSignal({
+          event_type: "cart",
+          product_id: added.product_id,
+          related_product_ids: related,
+          idempotency_key: `cart:${cartData.id}:${added.product_id}:${added.quantity}`,
+        }).catch((error) =>
+          console.warn("Recommendation cart signal was not recorded", error),
+        );
+      }
+    }
   } else {
     isCartUpdating.set(false);
   }

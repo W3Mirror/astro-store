@@ -19,6 +19,7 @@ export const configSchema = z.object({
   // env-based defaults above.
   siteConfigUrl: z.string().optional().default(""),
   customerEngagementEnabled: z.boolean().optional().default(false),
+  recommendationsEnabled: z.boolean().optional().default(false),
 });
 
 // Shape of the JSON served by the public per-project site-config endpoint.
@@ -193,6 +194,43 @@ export const PaymentOptionsResult = z.object({
   store_id: z.string(),
   payment_options: z.array(PaymentOptionResult),
 });
+
+export const StoreRecommendationResult = z.object({
+  product: z.object({
+    id: z.string(),
+    title: z.string(),
+    handle: z.string().nullable().optional(),
+    thumbnail: z.string().nullable().optional(),
+    variant_id: z.string().nullable().optional(),
+    amount: z.number().nullable().optional(),
+    currency_code: z.string().nullable().optional(),
+  }),
+  score: z.number(),
+  reasons: z.array(z.string()).min(1).max(8),
+  kind: z.enum(["upsell", "cross_sell", "promotion"]).optional(),
+  promotion_code: z.string().optional(),
+  rule_id: z.string().optional(),
+});
+
+export const StoreRecommendationsResult = z.object({
+  recommendations: z.array(StoreRecommendationResult).max(8),
+  algorithm: z.literal("deterministic-v1"),
+  signal_window_limit: z.number(),
+});
+
+export const RecommendationSignalInput = z
+  .object({
+    event_type: z.enum(["view", "cart"]),
+    product_id: z.string().trim().min(1).max(128),
+    related_product_ids: z
+      .array(z.string().trim().min(1).max(128))
+      .max(20)
+      .optional()
+      .default([]),
+    actor_key: z.string().min(16).max(128),
+    idempotency_key: z.string().min(8).max(160),
+  })
+  .strict();
 
 export const DeliveryTrackingEventResult = z.object({
   status: z.string(),

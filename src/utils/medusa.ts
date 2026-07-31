@@ -10,6 +10,7 @@ import {
   ProductResult,
   RegionResult,
   ShippingOptionResult,
+  StoreRecommendationsResult,
 } from "./schemas";
 import { config } from "./config";
 
@@ -145,6 +146,25 @@ export const getProductRecommendations = async (options: {
   return parsedProducts.slice(0, limit);
 };
 
+export const getStoreRecommendations = async (options: {
+  anchorProductIds?: string[];
+  excludeProductIds?: string[];
+  limit?: number;
+}) => {
+  const data = await medusaFetch<unknown>("/store/recommendations", {
+    params: {
+      anchor_product_ids: (options.anchorProductIds ?? [])
+        .slice(0, 10)
+        .join(","),
+      exclude_product_ids: (options.excludeProductIds ?? [])
+        .slice(0, 20)
+        .join(","),
+      limit: Math.max(1, Math.min(8, options.limit ?? 4)),
+    },
+  });
+  return StoreRecommendationsResult.parse(data).recommendations;
+};
+
 // Create a cart with a first line item and return the cart object
 export const createCart = async (variantId: string, quantity: number) => {
   const data = await medusaFetch<{ cart: unknown }>("/store/carts", {
@@ -179,6 +199,18 @@ export const addCartLineItem = async (
   const parsedCart = CartResult.parse(data.cart);
 
   return parsedCart;
+};
+
+export const applyCartPromotion = async (cartId: string, code: string) => {
+  const data = await medusaFetch<{ cart: unknown }>(
+    `/store/carts/${cartId}/promotions`,
+    {
+      method: "POST",
+      params: { fields: CART_FIELDS },
+      body: { promo_codes: [code] },
+    },
+  );
+  return CartResult.parse(data.cart);
 };
 
 // Remove a line item from an existing cart (by ID) and return the updated cart object

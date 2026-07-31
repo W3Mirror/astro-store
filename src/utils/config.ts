@@ -10,6 +10,8 @@ const defineConfig = {
   siteConfigUrl: import.meta.env.PUBLIC_SITE_CONFIG_URL,
   customerEngagementEnabled:
     import.meta.env.PUBLIC_CUSTOMER_ENGAGEMENT_ENABLED === "true",
+  recommendationsEnabled:
+    import.meta.env.PUBLIC_RECOMMENDATIONS_ENABLED === "true",
 };
 
 export const config = configSchema.parse(defineConfig);
