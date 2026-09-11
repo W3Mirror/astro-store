@@ -5,10 +5,6 @@ export const configSchema = z.object({
   medusaBackendUrl: z.string(),
   medusaPublishableKey: z.string(),
   medusaRegionId: z.string(),
-  // Optional: only set when a store wants Stripe as its checkout payment
-  // provider. When empty, the checkout falls back to Medusa's manual
-  // provider (`pp_system_default`) and never loads Stripe's client SDK.
-  stripePublishableKey: z.string().optional().default(""),
   // Neutral store name shown in the header, page titles, and footer.
   storeName: z.string().optional().default("Your Store"),
   // Optional announcement banner message. Empty/unset hides the banner
