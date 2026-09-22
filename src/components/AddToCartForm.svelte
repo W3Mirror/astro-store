@@ -1,7 +1,12 @@
 <script lang="ts">
   import { preventDefault } from 'svelte/legacy';
 
-  import { addCartItem, isCartUpdating, cart } from "../stores/cart";
+  import {
+    addCartItem,
+    cart,
+    cartError,
+    isCartUpdating,
+  } from "../stores/cart";
 
   interface Props {
     variantId: string;
@@ -11,28 +16,82 @@
 
   let { variantId, variantQuantityAvailable, variantAvailableForSale }: Props = $props();
 
+  let selectedQuantity = $state(1);
+  let quantityError = $state("");
+
   // Check if the variant is already in the cart and if there are any units left
   let variantInCart =
     $derived($cart &&
     $cart.items?.filter((item) => item.variant_id === variantId)[0]);
+  let remainingQuantity = $derived(
+    Number.isFinite(variantQuantityAvailable)
+      ? Math.max(0, variantQuantityAvailable - (variantInCart?.quantity ?? 0))
+      : Infinity,
+  );
   let noQuantityLeft =
-    $derived(variantInCart && variantQuantityAvailable <= variantInCart?.quantity);
+    $derived(Number.isFinite(remainingQuantity) && remainingQuantity < 1);
 
   function addToCart(e: Event) {
-    const form = e.target as HTMLFormElement;
+    const form = e.currentTarget as HTMLFormElement;
     const formData = new FormData(form);
-    const { id, quantity } = Object.fromEntries(formData);
-    const item = {
-      id: id as string,
-      quantity: parseInt(quantity as string),
-    };
-    addCartItem(item);
+    const quantity = Number(formData.get("quantity"));
+    const maxQuantity = Number.isFinite(remainingQuantity)
+      ? remainingQuantity
+      : Infinity;
+
+    if (
+      !Number.isSafeInteger(quantity) ||
+      quantity < 1 ||
+      quantity > maxQuantity
+    ) {
+      quantityError = Number.isFinite(maxQuantity)
+        ? `Enter a whole number from 1 to ${maxQuantity}.`
+        : "Enter a whole number of at least 1.";
+      return;
+    }
+
+    quantityError = "";
+    void addCartItem({ id: variantId, quantity }).catch(() => {
+      // The store exposes the readable error through cartError.
+    });
   }
 </script>
 
 <form onsubmit={preventDefault((e) => addToCart(e))}>
-  <input type="hidden" name="id" value={variantId} />
-  <input type="hidden" name="quantity" value="1" />
+  <label class="mt-8 block text-sm font-medium text-zinc-700" for="quantity">
+    Quantity
+  </label>
+  <input
+    id="quantity"
+    name="quantity"
+    type="number"
+    min="1"
+    step="1"
+    max={Number.isFinite(remainingQuantity) ? remainingQuantity : undefined}
+    bind:value={selectedQuantity}
+    aria-describedby="quantity-help quantity-error"
+    class="mt-2 w-24 rounded-md border border-zinc-300 px-3 py-2 text-zinc-900"
+    disabled={!variantAvailableForSale || noQuantityLeft || $isCartUpdating}
+  />
+  {#if Number.isFinite(remainingQuantity)}
+    <p id="quantity-help" class="mt-1 text-sm text-zinc-500">
+      {remainingQuantity} available
+    </p>
+  {:else}
+    <p id="quantity-help" class="mt-1 text-sm text-zinc-500">
+      Available while stock lasts
+    </p>
+  {/if}
+  {#if quantityError || $cartError}
+    <p
+      id="quantity-error"
+      class="mt-2 text-sm text-red-600"
+      role="alert"
+      aria-live="polite"
+    >
+      {quantityError || $cartError}
+    </p>
+  {/if}
 
   <button
     type="submit"

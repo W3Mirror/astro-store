@@ -112,6 +112,25 @@ export const ProductResult = z
   })
   .nullable();
 
+// The Store API returns pagination metadata alongside the product list. Keep
+// this separate from ProductResult so callers can render reliable pagination
+// without changing the existing product-card contract.
+export const ProductPageResult = z
+  .object({
+    products: z.array(ProductResult),
+    count: z.number().int().nonnegative(),
+    offset: z.number().int().nonnegative(),
+    limit: z.number().int().positive(),
+    // Medusa's index-engine path returns its estimate in both `count` and
+    // `estimate_count`; the legacy graph path omits this field and returns an
+    // exact count. Preserve both the raw value and the derived accuracy bit.
+    estimate_count: z.number().int().nonnegative().optional(),
+  })
+  .transform((page) => ({
+    ...page,
+    countIsEstimated: page.estimate_count !== undefined,
+  }));
+
 // Shipping/billing address shape accepted and returned by /store/carts and
 // /store/orders. Field names mirror Medusa's `AddressPayload` exactly (it's
 // a `.strict()` zod object server-side, so extra keys are rejected).

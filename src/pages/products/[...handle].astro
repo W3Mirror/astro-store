@@ -91,7 +91,11 @@ setCache.short(Astro);
           </div>
 
           <div class="mt-8 lg:col-span-5 lg:mt-0">
-            <ProductInformations title={product.title} price={price} />
+            <ProductInformations
+              title={product.title}
+              price={price}
+              description={product.description}
+            />
 
             <div>
               <AddToCartForm

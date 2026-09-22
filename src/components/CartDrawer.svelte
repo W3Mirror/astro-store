@@ -4,9 +4,11 @@
   import { fade, fly } from "svelte/transition";
   import {
     cart,
+    cartError,
     isCartDrawerOpen,
     removeCartItems,
     isCartUpdating,
+    updateCartItem,
   } from "../stores/cart";
   import ResponsiveImage from "./ResponsiveImage.svelte";
   import Money from "./Money.svelte";
@@ -28,7 +30,25 @@
   });
 
   function removeItem(id: string) {
-    removeCartItems([id]);
+    void removeCartItems([id]).catch(() => {
+      // The cart store exposes the error in the drawer.
+    });
+  }
+
+  function setItemQuantity(id: string, quantity: number) {
+    void updateCartItem(id, quantity).catch(() => {
+      // The cart store exposes the error in the drawer.
+    });
+  }
+
+  function onQuantityInput(event: Event, id: string) {
+    const input = event.currentTarget as HTMLInputElement;
+    const quantity = Number(input.value);
+    if (!Number.isSafeInteger(quantity) || quantity < 0) {
+      cartError.set("Enter a whole number of zero or more.");
+      return;
+    }
+    setItemQuantity(id, quantity);
   }
 
   function closeCartDrawer() {
@@ -129,6 +149,15 @@
 
               <div class="flex-1 overflow-y-scroll">
                 <div class="px-5">
+                  {#if $cartError}
+                    <p
+                      class="mt-5 rounded-md bg-red-50 p-3 text-sm text-red-700"
+                      role="alert"
+                      aria-live="assertive"
+                    >
+                      {$cartError}
+                    </p>
+                  {/if}
                   {#if $cart && $cart.items && $cart.items.length > 0}
                     <!-- svelte-ignore a11y_no_redundant_roles -->
                     <ul
@@ -165,6 +194,43 @@
                                 }}
                               />
                             </p>
+                            <div
+                              class="flex items-center gap-2"
+                              aria-label={`Quantity for ${item.product_title || item.title}`}
+                            >
+                              <button
+                                type="button"
+                                class="h-8 w-8 rounded border border-zinc-300 text-lg leading-none"
+                                aria-label={`Decrease quantity of ${item.product_title || item.title}`}
+                                onclick={() =>
+                                  setItemQuantity(item.id, Math.max(0, item.quantity - 1))}
+                                disabled={$isCartUpdating}
+                              >
+                                −
+                              </button>
+                              <label class="sr-only" for={`cart-quantity-${item.id}`}>
+                                Quantity for {item.product_title || item.title}
+                              </label>
+                              <input
+                                id={`cart-quantity-${item.id}`}
+                                type="number"
+                                min="0"
+                                step="1"
+                                value={item.quantity}
+                                onchange={(event) => onQuantityInput(event, item.id)}
+                                disabled={$isCartUpdating}
+                                class="h-8 w-16 rounded border border-zinc-300 px-2 text-center"
+                              />
+                              <button
+                                type="button"
+                                class="h-8 w-8 rounded border border-zinc-300 text-lg leading-none"
+                                aria-label={`Increase quantity of ${item.product_title || item.title}`}
+                                onclick={() => setItemQuantity(item.id, item.quantity + 1)}
+                                disabled={$isCartUpdating}
+                              >
+                                +
+                              </button>
+                            </div>
                           </div>
                           <div
                             class="col-span-2 items-end flex justify-between flex-col"

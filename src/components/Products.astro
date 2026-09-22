@@ -6,15 +6,21 @@ import ProductCard from "./ProductCard.astro";
 const ProductsResult = z.array(ProductResult);
 export interface Props {
   products: z.infer<typeof ProductsResult>;
+  eyebrow?: string;
+  heading?: string;
 }
-const { products } = Astro.props as Props;
+const {
+  products,
+  eyebrow = "Selected for you",
+  heading = "Featured collection",
+} = Astro.props as Props;
 ---
 
 <section id="featured-products" class="products-section">
   <div class="container py-16 sm:py-20">
     <div class="products-section__heading">
-      <p>Selected for you</p>
-      <h2>Featured collection</h2>
+      <p>{eyebrow}</p>
+      <h2>{heading}</h2>
     </div>
 
     <div class="products-grid grid gap-12 md:grid-cols-2 lg:grid-cols-3">

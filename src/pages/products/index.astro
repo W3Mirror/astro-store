@@ -1,0 +1,177 @@
+---
+import { getProductPage } from "../../utils/medusa";
+import { getProductPagination } from "../../utils/product-pagination";
+import { parseProductQuery } from "../../utils/product-query";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Products from "../../components/Products.astro";
+
+const params = Astro.url.searchParams;
+const { limit, offset, query, collectionId, categoryId, order } =
+  parseProductQuery(params);
+
+const page = await getProductPage({
+  limit,
+  offset,
+  q: query,
+  collectionId,
+  categoryId,
+  order,
+});
+
+const pageTitle = query ? `Search results for “${query}”` : "All products";
+const pagination = getProductPagination({
+  offset: page.offset,
+  limit: page.limit,
+  count: page.count,
+  productCount: page.products.length,
+  countIsEstimated: page.countIsEstimated,
+});
+
+const pageHref = (nextOffset: number) => {
+  const nextParams = new URLSearchParams();
+  if (query) nextParams.set("q", query);
+  if (collectionId) nextParams.set("collection_id", collectionId);
+  if (categoryId) nextParams.set("category_id", categoryId);
+  if (order) nextParams.set("order", order);
+  nextParams.set("limit", String(page.limit));
+  if (nextOffset > 0) nextParams.set("offset", String(nextOffset));
+  return `/products?${nextParams.toString()}`;
+};
+---
+
+<BaseLayout
+  title={pageTitle}
+  description="Browse products available from this store."
+  canonicalPath="/products"
+>
+  <section class="container pt-10 pb-4">
+    <div class="max-w-3xl">
+      <p class="text-sm font-semibold tracking-wide text-emerald-900 uppercase">
+        Catalog
+      </p>
+      <h1 class="mt-2 text-3xl font-bold text-zinc-900 sm:text-4xl">
+        {pageTitle}
+      </h1>
+    </div>
+
+    <form
+      method="get"
+      class="mt-8 grid gap-4 rounded-lg border border-zinc-200 bg-zinc-50 p-5 md:grid-cols-[minmax(0,1fr)_auto]"
+    >
+      <div>
+        <label class="text-sm font-medium text-zinc-700" for="product-search">
+          Search products
+        </label>
+        <input
+          id="product-search"
+          type="search"
+          name="q"
+          value={query || ""}
+          placeholder="Search by product name"
+          class="mt-2 w-full rounded-md border border-zinc-300 bg-white px-3 py-2"
+        />
+      </div>
+      <div class="flex items-end gap-3">
+        <input type="hidden" name="limit" value={page.limit} />
+        <button type="submit" class="button">Search</button>
+        {
+          query && (
+            <a
+              href="/products"
+              class="rounded-lg border border-zinc-300 px-6 py-3 text-base font-medium"
+            >
+              Clear
+            </a>
+          )
+        }
+      </div>
+      <details class="md:col-span-2">
+        <summary class="cursor-pointer text-sm font-medium text-zinc-700">
+          Additional filters
+        </summary>
+        <div class="mt-4 grid gap-4 sm:grid-cols-3">
+          <div>
+            <label class="text-sm text-zinc-700" for="product-order">
+              Sort by
+            </label>
+            <select
+              id="product-order"
+              name="order"
+              class="mt-1 w-full rounded-md border border-zinc-300 bg-white px-3 py-2"
+            >
+              <option value="-created_at" selected={order === "-created_at"}>
+                Newest
+              </option>
+              <option value="created_at" selected={order === "created_at"}>
+                Oldest
+              </option>
+              <option value="title" selected={order === "title"}>
+                Title A–Z
+              </option>
+              <option value="-title" selected={order === "-title"}>
+                Title Z–A
+              </option>
+            </select>
+          </div>
+        </div>
+        {
+          collectionId && (
+            <input type="hidden" name="collection_id" value={collectionId} />
+          )
+        }
+        {
+          categoryId && (
+            <input type="hidden" name="category_id" value={categoryId} />
+          )
+        }
+      </details>
+    </form>
+  </section>
+
+  {
+    page.products.length > 0 ? (
+      <Products
+        products={page.products}
+        eyebrow={query ? "Search" : "Catalog"}
+        heading={query ? `Results for “${query}”` : "All products"}
+      />
+    ) : (
+      <section class="container py-16">
+        <p class="text-center text-zinc-600">
+          No products matched these filters.
+        </p>
+      </section>
+    )
+  }
+
+  <nav
+    class="container flex items-center justify-between gap-4 pb-16"
+    aria-label="Product pagination"
+  >
+    {
+      pagination.hasPrevious ? (
+        <a
+          class="rounded-lg border border-zinc-300 px-6 py-3 text-base font-medium"
+          href={pageHref(Math.max(0, page.offset - page.limit))}
+        >
+          Previous
+        </a>
+      ) : (
+        <span />
+      )
+    }
+    <p class="text-sm text-zinc-600">{pagination.label}</p>
+    {
+      pagination.hasNext ? (
+        <a
+          class="rounded-lg border border-zinc-300 px-6 py-3 text-base font-medium"
+          href={pageHref(page.offset + page.limit)}
+        >
+          Next
+        </a>
+      ) : (
+        <span />
+      )
+    }
+  </nav>
+</BaseLayout>

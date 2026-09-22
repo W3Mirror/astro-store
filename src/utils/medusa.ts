@@ -7,6 +7,7 @@ import {
   OrderTrackingResult,
   PaymentCollectionResult,
   PaymentOptionsResult,
+  ProductPageResult,
   ProductResult,
   RegionResult,
   ShippingOptionResult,
@@ -79,22 +80,61 @@ const medusaFetch = async <T>(
   return response.json();
 };
 
-// Get all products or a limited number of products (default: 10)
-export const getProducts = async (options: { limit?: number } = {}) => {
-  const { limit = 10 } = options;
+export interface ProductPageOptions {
+  limit?: number;
+  offset?: number;
+  q?: string;
+  collectionId?: string;
+  categoryId?: string;
+  order?: string;
+}
 
-  const data = await medusaFetch<{ products: unknown[] }>("/store/products", {
+const PRODUCT_PAGE_MAX_LIMIT = 500;
+const PRODUCT_PAGE_MAX_OFFSET = 100_000;
+
+const boundedInteger = (
+  value: number | undefined,
+  fallback: number,
+  minimum: number,
+  maximum: number,
+) => {
+  if (!Number.isSafeInteger(value)) return fallback;
+  return Math.min(maximum, Math.max(minimum, value as number));
+};
+
+const trimmedParam = (value: string | undefined, maximumLength = 200) => {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed.slice(0, maximumLength) : undefined;
+};
+
+// Get a bounded product page while retaining the configured region for all
+// storefront requests. The Store API returns count/offset/limit metadata that
+// is needed by the catalog route's pagination controls.
+export const getProductPage = async (options: ProductPageOptions = {}) => {
+  const limit = boundedInteger(options.limit, 10, 1, PRODUCT_PAGE_MAX_LIMIT);
+  const offset = boundedInteger(options.offset, 0, 0, PRODUCT_PAGE_MAX_OFFSET);
+
+  const data = await medusaFetch<unknown>("/store/products", {
     params: {
       limit,
+      offset,
+      q: trimmedParam(options.q),
+      collection_id: trimmedParam(options.collectionId),
+      category_id: trimmedParam(options.categoryId),
+      order: trimmedParam(options.order, 80),
       region_id: config.medusaRegionId,
       fields: PRODUCT_FIELDS,
     },
   });
 
-  const ProductsResult = z.array(ProductResult);
-  const parsedProducts = ProductsResult.parse(data.products);
+  return ProductPageResult.parse(data);
+};
 
-  return parsedProducts;
+// Compatibility wrapper used by the homepage, sitemap, and llms endpoint.
+// Those callers intentionally need only the product array.
+export const getProducts = async (options: ProductPageOptions = {}) => {
+  const page = await getProductPage(options);
+  return page.products;
 };
 
 // Get a product by its handle (slug)
@@ -199,6 +239,25 @@ export const addCartLineItem = async (
   const parsedCart = CartResult.parse(data.cart);
 
   return parsedCart;
+};
+
+// Update the quantity of an existing cart line. Medusa accepts quantity 0 and
+// removes the line, which keeps quantity controls and delete behavior in sync.
+export const updateCartLineItem = async (
+  cartId: string,
+  lineId: string,
+  quantity: number,
+) => {
+  const data = await medusaFetch<{ cart: unknown }>(
+    `/store/carts/${cartId}/line-items/${lineId}`,
+    {
+      method: "POST",
+      params: { fields: CART_FIELDS },
+      body: { quantity },
+    },
+  );
+
+  return CartResult.parse(data.cart);
 };
 
 export const applyCartPromotion = async (cartId: string, code: string) => {

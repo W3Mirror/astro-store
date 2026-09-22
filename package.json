@@ -17,7 +17,8 @@
     "test:first-paint": "node --test scripts/first-paint.test.mjs",
     "test:seo": "node --test scripts/seo-contract.test.mjs",
     "test:customer-account": "node --test scripts/customer-account.test.mjs",
-    "test:recommendations": "node --test scripts/recommendations-contract.test.mjs"
+    "test:recommendations": "node --test scripts/recommendations-contract.test.mjs",
+    "test:storefront-runtime": "node --test scripts/storefront-runtime.test.mjs"
   },
   "dependencies": {
     "@astrojs/cloudflare": "^12.6.13",
