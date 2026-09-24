@@ -3,7 +3,9 @@ import Header from "../components/Header.astro";
 import Footer from "../components/Footer.astro";
 import CartDrawer from "../components/CartDrawer.svelte";
 import AnnouncementBar from "../components/AnnouncementBar.astro";
+import TestStoreBanner from "../components/TestStoreBanner.astro";
 import { getSiteConfig } from "../utils/site-config";
+import { config } from "../utils/config";
 
 export interface Props {
   title: string;
@@ -26,7 +28,11 @@ const {
   jsonLd,
 } = Astro.props as Props;
 const canonical = new URL(canonicalPath, Astro.url.origin).toString();
+// A test-environment build always wins over the remote site-config overlay:
+// it must never be indexable, regardless of what the live storefront's
+// SEO review status says.
 const robots =
+  config.storeEnvironment === "test" ||
   siteConfig.seo?.profile.indexable === false
     ? "noindex, nofollow"
     : "index, follow";
@@ -69,6 +75,7 @@ const jsonLdItems = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
     </style>
   </head>
   <body>
+    <TestStoreBanner />
     <AnnouncementBar />
     <CartDrawer client:idle />
     <Header />

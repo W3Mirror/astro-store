@@ -20,6 +20,12 @@ All Medusa config lives in three `PUBLIC_`-prefixed variables (see
 | `PUBLIC_MEDUSA_PUBLISHABLE_KEY` | `pk_...`                      | Store → Settings → API Key Management. Must be scoped to a sales channel with products. |
 | `PUBLIC_MEDUSA_REGION_ID`       | `reg_...`                     | Settings → Regions. Used to request calculated prices.                                  |
 
+Optional flag, same build-time contract:
+
+| Variable                   | Example | Notes                                                                                                                                                                                              |
+| --------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PUBLIC_STORE_ENVIRONMENT` | `test`  | Set to `test` to build this deployment as the test twin: visible "Test store — orders aren't real" banner, `X-Robots-Tag: noindex, nofollow` on every response, and a fully disallowing `robots.txt`. Unset (or anything other than `test`) is the live build — unchanged. |
+
 **These are build-time values, not runtime ones.** `src/utils/config.ts`
 reads them via `import.meta.env`, which Vite inlines into the JS bundle
 when `astro build` runs — they are not read from `wrangler.jsonc` `vars` or
@@ -75,6 +81,16 @@ uses plain `fetch` and needs no adapter-specific code; it works unmodified
 in Vercel's Node serverless functions. The allow-listed overlay also accepts
 `storefrontPreset` (`minimal`, `editorial`, or `conversion`); missing or invalid
 values resolve to `minimal`, so older store configs remain compatible.
+
+For a store's **test twin**, the publish pipeline runs this same
+`build:vercel` command with `PUBLIC_STORE_ENVIRONMENT=test` added to that
+build's env — and only that build's env; the live build must never set it.
+That flips on the test-store banner, forces noindex on every response
+(`src/middleware.ts` sets `X-Robots-Tag`; `BaseLayout.astro` forces the
+`<meta name="robots">` tag; `src/pages/robots.txt.ts` disallows everything),
+and otherwise builds and deploys identically to the live storefront (same
+adapter, same Build Output API artifact, same `vercel deploy --prebuilt`
+step, just pointed at the test store's publishable key/region).
 
 ## First-paint contract
 

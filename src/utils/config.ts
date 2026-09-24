@@ -11,6 +11,7 @@ const defineConfig = {
     import.meta.env.PUBLIC_CUSTOMER_ENGAGEMENT_ENABLED === "true",
   recommendationsEnabled:
     import.meta.env.PUBLIC_RECOMMENDATIONS_ENABLED === "true",
+  storeEnvironment: import.meta.env.PUBLIC_STORE_ENVIRONMENT,
 };
 
 export const config = configSchema.parse(defineConfig);

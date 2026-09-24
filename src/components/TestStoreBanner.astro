@@ -1,0 +1,29 @@
+---
+import { config } from "../utils/config";
+
+// Visible, accessible marker that this build is the test twin, not the
+// live storefront — orders placed here are never real. Only rendered when
+// this build was made with PUBLIC_STORE_ENVIRONMENT=test; the live build
+// renders nothing here (see AnnouncementBar.astro for the analogous
+// merchant-configured banner).
+const isTestEnvironment = config.storeEnvironment === "test";
+---
+
+{
+  isTestEnvironment && (
+    <div
+      class="test-store-banner flex items-center justify-center px-4 py-2 text-center text-sm font-bold"
+      role="status"
+      aria-live="polite"
+    >
+      Test store — orders aren't real
+    </div>
+  )
+}
+
+<style>
+  .test-store-banner {
+    background-color: #7c2d12;
+    color: #fef3c7;
+  }
+</style>

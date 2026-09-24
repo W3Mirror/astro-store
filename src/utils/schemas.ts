@@ -16,6 +16,17 @@ export const configSchema = z.object({
   siteConfigUrl: z.string().optional().default(""),
   customerEngagementEnabled: z.boolean().optional().default(false),
   recommendationsEnabled: z.boolean().optional().default(false),
+  // Which twin of the store this build represents. "test" builds render a
+  // visible "orders aren't real" banner, force noindex/nofollow (meta tag,
+  // X-Robots-Tag header, and robots.txt), and never claim to be the live
+  // storefront. Unset/anything else behaves exactly like today (live).
+  // Preprocess so an empty string (e.g. `PUBLIC_STORE_ENVIRONMENT=` as
+  // shipped in `.env.example`) is treated the same as unset, matching every
+  // other optional `PUBLIC_*` var's tolerance of `""`.
+  storeEnvironment: z.preprocess(
+    (v) => (v === "" ? undefined : v),
+    z.enum(["live", "test"]).optional().default("live"),
+  ),
 });
 
 // Shape of the JSON served by the public per-project site-config endpoint.
