@@ -19,7 +19,7 @@ import { config } from "./config";
 // calculated prices (needs `region_id`), inventory and variant options.
 // `+` adds to the default field set, `*` expands a relation.
 const PRODUCT_FIELDS =
-  "*variants.calculated_price,+variants.inventory_quantity,+variants.allow_backorder,+variants.manage_inventory,*variants.options,+options,+images";
+  "*variants.calculated_price,+variants.inventory_quantity,+variants.allow_backorder,+variants.manage_inventory,*variants.options,+options,+images,+categories.id,+categories.name";
 
 // Cart line items don't include per-item totals by default, only the unit
 // price — request them explicitly. Shipping methods default to amount/option
@@ -157,25 +157,37 @@ export const getProductByHandle = async (options: { handle: string }) => {
 };
 
 // Medusa's Store API has no dedicated recommendations endpoint, so we fall
-// back to other products in the same collection.
+// back to other products in the same category (the many-to-many model
+// collections are migrating onto — see
+// `docs-internal/collections-many-to-many.mdx`), or the same legacy
+// collection for a store not yet backfilled onto categories. `categoryId`
+// takes priority; `collectionId` is used only when no category is given.
 export const getProductRecommendations = async (options: {
   productId: string;
+  categoryId?: string | null;
   collectionId?: string | null;
   limit?: number;
 }) => {
-  const { productId, collectionId, limit = 4 } = options;
+  const { productId, categoryId, collectionId, limit = 4 } = options;
 
-  if (!collectionId) {
+  if (!categoryId && !collectionId) {
     return [];
   }
 
   const data = await medusaFetch<{ products: unknown[] }>("/store/products", {
-    params: {
-      collection_id: collectionId,
-      region_id: config.medusaRegionId,
-      limit: limit + 1,
-      fields: PRODUCT_FIELDS,
-    },
+    params: categoryId
+      ? {
+          category_id: categoryId,
+          region_id: config.medusaRegionId,
+          limit: limit + 1,
+          fields: PRODUCT_FIELDS,
+        }
+      : {
+          collection_id: collectionId,
+          region_id: config.medusaRegionId,
+          limit: limit + 1,
+          fields: PRODUCT_FIELDS,
+        },
   });
 
   const ProductsResult = z.array(ProductResult);

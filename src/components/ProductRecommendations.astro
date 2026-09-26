@@ -11,10 +11,11 @@ import ResponsiveImage from "./ResponsiveImage.svelte";
 
 export interface Props {
   productId: string;
+  categoryId?: string | null;
   collectionId?: string | null;
 }
 
-const { productId, collectionId } = Astro.props as Props;
+const { productId, categoryId, collectionId } = Astro.props as Props;
 let ranked: Array<{
   product: {
     id: string;
@@ -48,6 +49,7 @@ if (config.recommendationsEnabled) {
 if (ranked.length === 0) {
   const fallback = await getProductRecommendations({
     productId,
+    categoryId,
     collectionId,
   });
   ranked = fallback.flatMap((product) => {

@@ -128,6 +128,7 @@ setCache.short(Astro);
       <section class="container">
         <ProductRecommendations
           productId={product.id}
+          categoryId={product.categories?.[0]?.id}
           collectionId={product.collection_id}
         />
       </section>

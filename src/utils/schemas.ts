@@ -117,6 +117,15 @@ export const ProductResult = z
     description: z.string().nullable().optional(),
     thumbnail: z.string().nullable().optional(),
     collection_id: z.string().nullable().optional(),
+    // Many-to-many product categories — the merchant-facing "collection"
+    // concept in `web-app/ecomm-ai` is being migrated onto this model (see
+    // the parent repo's `docs-internal/collections-many-to-many.mdx`), so a
+    // product can carry several. `collection_id` above is kept as a fallback
+    // for a store that hasn't been backfilled yet.
+    categories: z
+      .array(z.object({ id: z.string(), name: z.string() }))
+      .optional()
+      .default([]),
     images: z.array(ImageResult).optional().default([]),
     options: z.array(ProductOptionResult).optional().default([]),
     variants: z.array(VariantResult).optional().default([]),
