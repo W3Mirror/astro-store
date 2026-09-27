@@ -219,3 +219,47 @@ test("needsVariantPicker is false for single-variant products, true for multi-va
     false,
   );
 });
+
+// Regression coverage for the exact "P16" (Kashmiri Kaam Suit) stock profile
+// verified on the live Nagama TEST store: three tracked, non-backorderable
+// variants with stock 5 / 3 / 5 at a single stock location. Every one of
+// them must be purchasable — `getVariantAvailability` (and, transitively,
+// `AddToCartForm`'s `disabled` binding) must never treat a variant with
+// positive `inventory_quantity` as sold out.
+test("purchasability: every P16 variant (stock 5/3/5) is available for sale", () => {
+  const p16Variants = [
+    variant("var_ray_u", "Rayon", "Unstitched", { inventory_quantity: 5 }),
+    variant("var_ray_s", "Rayon", "Stitched", { inventory_quantity: 3 }),
+    variant("var_cot_u", "Cotton", "Unstitched", { inventory_quantity: 5 }),
+  ];
+
+  for (const v of p16Variants) {
+    const availability = variantSelection.getVariantAvailability(v);
+    assert.equal(
+      availability.availableForSale,
+      true,
+      `${v.id} (stock ${v.inventory_quantity}) should be purchasable`,
+    );
+    assert.equal(availability.quantityAvailable, v.inventory_quantity);
+  }
+});
+
+test("purchasability flips to false only once tracked stock actually reaches zero", () => {
+  const inStock = variantSelection.getVariantAvailability(
+    variant("var_ray_u", "Rayon", "Unstitched", { inventory_quantity: 1 }),
+  );
+  assert.equal(inStock.availableForSale, true);
+
+  const outOfStock = variantSelection.getVariantAvailability(
+    variant("var_ray_u", "Rayon", "Unstitched", { inventory_quantity: 0 }),
+  );
+  assert.equal(outOfStock.availableForSale, false);
+
+  // A `null` inventory_quantity (nullable in the store API response) is
+  // treated the same as 0 — never as unlimited.
+  const nullQuantity = variantSelection.getVariantAvailability(
+    variant("var_ray_u", "Rayon", "Unstitched", { inventory_quantity: null }),
+  );
+  assert.equal(nullQuantity.availableForSale, false);
+  assert.equal(nullQuantity.quantityAvailable, 0);
+});
