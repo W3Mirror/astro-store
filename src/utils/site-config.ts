@@ -1,9 +1,5 @@
 import { SiteConfigOverlayResult } from "./schemas";
 import { config } from "./config";
-import {
-  defaultStorefrontPreset,
-  type StorefrontPreset,
-} from "./store-presets";
 
 // The effective, per-request store configuration: env-based defaults
 // (`config.storeName`, `config.announcementMessage`) overlaid with values
@@ -15,7 +11,6 @@ export interface SiteConfig {
   announcementMessage: string;
   heroHeading: string;
   heroSubheading: string;
-  storefrontPreset: StorefrontPreset;
   seo: SeoConfig | null;
 }
 
@@ -35,6 +30,19 @@ export interface SeoConfig {
 const TTL_MS = 30_000;
 const FETCH_TIMEOUT_MS = 3_000;
 
+// Best-effort host extraction for log lines. `siteConfigUrl` is a plain,
+// unvalidated string (see `configSchema`), so a misconfigured value (e.g.
+// an empty string reaching here, a bare hostname, or a typo'd scheme) must
+// never throw out of a log statement — fall back to the raw value so the
+// log line still points at whatever was actually configured.
+const describeSiteConfigUrl = (url: string): string => {
+  try {
+    return new URL(url).host;
+  } catch {
+    return url || "(empty)";
+  }
+};
+
 let cached: { value: SiteConfig; expiresAt: number } | null = null;
 let inFlight: Promise<SiteConfig> | null = null;
 
@@ -43,7 +51,6 @@ const envDefaults = (): SiteConfig => ({
   announcementMessage: config.announcementMessage,
   heroHeading: "",
   heroSubheading: "",
-  storefrontPreset: defaultStorefrontPreset,
   seo: null,
 });
 
@@ -68,7 +75,7 @@ const fetchSiteConfig = async (): Promise<SiteConfig> => {
 
     if (!response.ok) {
       console.error(
-        `[site-config] GET ${config.siteConfigUrl} returned ${response.status}; falling back to env defaults.`,
+        `[site-config] GET host=${describeSiteConfigUrl(config.siteConfigUrl)} status=${response.status}; falling back to env defaults.`,
       );
       return defaults;
     }
@@ -81,7 +88,6 @@ const fetchSiteConfig = async (): Promise<SiteConfig> => {
         overlay.announcementMessage ?? defaults.announcementMessage,
       heroHeading: overlay.heroHeading || defaults.heroHeading,
       heroSubheading: overlay.heroSubheading || defaults.heroSubheading,
-      storefrontPreset: overlay.storefrontPreset || defaults.storefrontPreset,
       seo:
         overlay.seo?.reviewStatus === "approved"
           ? {
@@ -91,7 +97,7 @@ const fetchSiteConfig = async (): Promise<SiteConfig> => {
     };
   } catch (error) {
     console.error(
-      `[site-config] Failed to fetch/parse ${config.siteConfigUrl}; falling back to env defaults.`,
+      `[site-config] Failed to fetch/parse host=${describeSiteConfigUrl(config.siteConfigUrl)}; falling back to env defaults.`,
       error,
     );
     return defaults;
