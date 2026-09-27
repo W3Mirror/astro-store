@@ -4,6 +4,7 @@ import { getProductPagination } from "../../utils/product-pagination";
 import { parseProductQuery } from "../../utils/product-query";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import Products from "../../components/Products.astro";
+import ProductPaginationNav from "../../components/ProductPaginationNav.astro";
 
 const params = Astro.url.searchParams;
 const { limit, offset, query, collectionId, categoryId, order } =
@@ -144,34 +145,10 @@ const pageHref = (nextOffset: number) => {
     )
   }
 
-  <nav
-    class="container flex items-center justify-between gap-4 pb-16"
-    aria-label="Product pagination"
-  >
-    {
-      pagination.hasPrevious ? (
-        <a
-          class="rounded-lg border border-zinc-300 px-6 py-3 text-base font-medium"
-          href={pageHref(Math.max(0, page.offset - page.limit))}
-        >
-          Previous
-        </a>
-      ) : (
-        <span />
-      )
-    }
-    <p class="text-sm text-zinc-600">{pagination.label}</p>
-    {
-      pagination.hasNext ? (
-        <a
-          class="rounded-lg border border-zinc-300 px-6 py-3 text-base font-medium"
-          href={pageHref(page.offset + page.limit)}
-        >
-          Next
-        </a>
-      ) : (
-        <span />
-      )
-    }
-  </nav>
+  <ProductPaginationNav
+    pagination={pagination}
+    pageHref={pageHref}
+    previousOffset={Math.max(0, page.offset - page.limit)}
+    nextOffset={page.offset + page.limit}
+  />
 </BaseLayout>

@@ -1,0 +1,127 @@
+---
+import { getCollectionByHandle, getProductPage } from "../../utils/medusa";
+import { getProductPagination } from "../../utils/product-pagination";
+import { parseProductQuery } from "../../utils/product-query";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import NotFoundLayout from "../../layouts/NotFoundLayout.astro";
+import Products from "../../components/Products.astro";
+import ProductPaginationNav from "../../components/ProductPaginationNav.astro";
+
+const { handle } = Astro.params;
+const collection = await getCollectionByHandle({ handle: handle || "" });
+
+if (!collection) {
+  Astro.response.status = 404;
+}
+
+// The route's own `handle` is the only source of collection scoping — a
+// `?category_id=`/`?collection_id=` on this URL is ignored so a shopper (or
+// a crawled link) can never widen/redirect this page to a different
+// collection than the one in its path.
+const { limit, offset, order } = parseProductQuery(Astro.url.searchParams);
+
+const page = collection
+  ? await getProductPage({ limit, offset, categoryId: collection.id, order })
+  : null;
+
+const pagination = page
+  ? getProductPagination({
+      offset: page.offset,
+      limit: page.limit,
+      count: page.count,
+      productCount: page.products.length,
+      countIsEstimated: page.countIsEstimated,
+    })
+  : null;
+
+const pageHref = (nextOffset: number) => {
+  const nextParams = new URLSearchParams();
+  if (order) nextParams.set("order", order);
+  nextParams.set("limit", String(limit));
+  if (nextOffset > 0) nextParams.set("offset", String(nextOffset));
+  return `/collections/${handle}?${nextParams.toString()}`;
+};
+---
+
+{
+  !collection || !page || !pagination ? (
+    <NotFoundLayout
+      title="Collection not found"
+      message="Collection not found"
+    />
+  ) : (
+    <BaseLayout
+      title={collection.name}
+      description={
+        collection.description || `Shop the ${collection.name} collection.`
+      }
+      canonicalPath={`/collections/${collection.handle}`}
+    >
+      <section class="container pt-10 pb-4">
+        <p class="text-sm font-semibold tracking-wide text-emerald-900 uppercase">
+          Collection
+        </p>
+        <h1 class="mt-2 text-3xl font-bold text-zinc-900 sm:text-4xl">
+          {collection.name}
+        </h1>
+        {collection.description ? (
+          <p class="mt-4 max-w-2xl text-zinc-600">{collection.description}</p>
+        ) : null}
+
+        <form
+          method="get"
+          class="mt-8 flex flex-wrap items-end gap-3 rounded-lg border border-zinc-200 bg-zinc-50 p-5"
+        >
+          <div>
+            <label class="text-sm text-zinc-700" for="collection-product-order">
+              Sort by
+            </label>
+            <select
+              id="collection-product-order"
+              name="order"
+              class="mt-1 w-full rounded-md border border-zinc-300 bg-white px-3 py-2"
+            >
+              <option value="-created_at" selected={order === "-created_at"}>
+                Newest
+              </option>
+              <option value="created_at" selected={order === "created_at"}>
+                Oldest
+              </option>
+              <option value="title" selected={order === "title"}>
+                Title A–Z
+              </option>
+              <option value="-title" selected={order === "-title"}>
+                Title Z–A
+              </option>
+            </select>
+          </div>
+          <input type="hidden" name="limit" value={limit} />
+          <button type="submit" class="button">
+            Sort
+          </button>
+        </form>
+      </section>
+
+      {page.products.length > 0 ? (
+        <Products
+          products={page.products}
+          eyebrow="Collection"
+          heading={collection.name}
+        />
+      ) : (
+        <section class="container py-16">
+          <p class="text-center text-zinc-600">
+            No products in this collection yet.
+          </p>
+        </section>
+      )}
+
+      <ProductPaginationNav
+        pagination={pagination}
+        pageHref={pageHref}
+        previousOffset={Math.max(0, page.offset - page.limit)}
+        nextOffset={page.offset + page.limit}
+      />
+    </BaseLayout>
+  )
+}

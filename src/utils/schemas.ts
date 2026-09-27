@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { storefrontPresets } from "./store-presets";
 
 export const configSchema = z.object({
   medusaBackendUrl: z.string(),
@@ -32,13 +31,15 @@ export const configSchema = z.object({
 // Shape of the JSON served by the public per-project site-config endpoint.
 // Every field is optional/nullable — the overlay only applies fields that
 // come back as non-empty strings, falling back to the env-based `config`
-// defaults otherwise.
+// defaults otherwise. `z.object()` (not `.strict()`) ignores unknown keys by
+// design: the backend may still send a now-removed `storefrontPreset` field
+// for a while after this template drops the storefront-preset feature, and
+// that must not fail parsing.
 export const SiteConfigOverlayResult = z.object({
   storeName: z.string().nullable().optional(),
   announcementMessage: z.string().nullable().optional(),
   heroHeading: z.string().nullable().optional(),
   heroSubheading: z.string().nullable().optional(),
-  storefrontPreset: z.enum(storefrontPresets).nullable().optional(),
   seo: z
     .object({
       profile: z.object({
@@ -131,6 +132,28 @@ export const ProductResult = z
     variants: z.array(VariantResult).optional().default([]),
   })
   .nullable();
+
+// A "collection" in this storefront is backed by Medusa's native
+// `product_category` model (many-to-many with products), not
+// `product_collection` — see the parent repo's
+// `docs-internal/collections-many-to-many.mdx`. `GET /store/product-categories`
+// already forces `is_active: true, is_internal: false` server-side, so every
+// category returned here is meant to be storefront-visible.
+export const CategoryResult = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    handle: z.string(),
+    description: z.string().nullable().optional(),
+  })
+  .nullable();
+
+export const CategoryListResult = z.object({
+  product_categories: z.array(CategoryResult),
+  count: z.number().int().nonnegative(),
+  offset: z.number().int().nonnegative(),
+  limit: z.number().int().positive(),
+});
 
 // The Store API returns pagination metadata alongside the product list. Keep
 // this separate from ProductResult so callers can render reliable pagination

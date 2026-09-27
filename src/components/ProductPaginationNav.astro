@@ -1,0 +1,47 @@
+---
+import type { ProductPagination } from "../utils/product-pagination";
+
+export interface Props {
+  pagination: ProductPagination;
+  // Builds the href for a given offset, keeping every other query param
+  // (search, sort, collection/category scoping) intact — the caller owns
+  // that since it varies per listing page.
+  pageHref: (offset: number) => string;
+  previousOffset: number;
+  nextOffset: number;
+}
+
+const { pagination, pageHref, previousOffset, nextOffset } =
+  Astro.props as Props;
+---
+
+<nav
+  class="container flex items-center justify-between gap-4 pb-16"
+  aria-label="Product pagination"
+>
+  {
+    pagination.hasPrevious ? (
+      <a
+        class="rounded-lg border border-zinc-300 px-6 py-3 text-base font-medium"
+        href={pageHref(previousOffset)}
+      >
+        Previous
+      </a>
+    ) : (
+      <span />
+    )
+  }
+  <p class="text-sm text-zinc-600">{pagination.label}</p>
+  {
+    pagination.hasNext ? (
+      <a
+        class="rounded-lg border border-zinc-300 px-6 py-3 text-base font-medium"
+        href={pageHref(nextOffset)}
+      >
+        Next
+      </a>
+    ) : (
+      <span />
+    )
+  }
+</nav>

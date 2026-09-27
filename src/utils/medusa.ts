@@ -2,6 +2,8 @@ import { z } from "zod";
 import {
   CalculatedPriceResult,
   CartResult,
+  CategoryListResult,
+  CategoryResult,
   MoneyResult,
   OrderResult,
   OrderTrackingResult,
@@ -154,6 +156,49 @@ export const getProductByHandle = async (options: { handle: string }) => {
   const parsedProduct = ProductResult.parse(product);
 
   return parsedProduct;
+};
+
+const COLLECTIONS_MAX_LIMIT = 100;
+
+// List every storefront-visible collection (a Medusa product category —
+// see `CategoryResult`'s doc comment). `/store/product-categories` already
+// filters to active, non-internal categories server-side.
+export const getCollections = async (
+  options: { limit?: number; offset?: number } = {},
+) => {
+  const limit = boundedInteger(options.limit, 50, 1, COLLECTIONS_MAX_LIMIT);
+  const offset = boundedInteger(options.offset, 0, 0, PRODUCT_PAGE_MAX_OFFSET);
+
+  const data = await medusaFetch<unknown>("/store/product-categories", {
+    params: {
+      limit,
+      offset,
+      fields: "id,name,handle,description",
+    },
+  });
+
+  return CategoryListResult.parse(data);
+};
+
+// Get a collection by its handle (slug), or null if none matches — the
+// caller renders a 404 in that case, same convention as
+// `getProductByHandle`.
+export const getCollectionByHandle = async (options: { handle: string }) => {
+  const { handle } = options;
+
+  const data = await medusaFetch<{ product_categories: unknown[] }>(
+    "/store/product-categories",
+    {
+      params: {
+        handle,
+        limit: 1,
+        fields: "id,name,handle,description",
+      },
+    },
+  );
+
+  const category = data.product_categories?.[0] ?? null;
+  return CategoryResult.parse(category);
 };
 
 // Medusa's Store API has no dedicated recommendations endpoint, so we fall

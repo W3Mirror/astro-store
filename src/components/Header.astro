@@ -2,14 +2,31 @@
 import CartIcon from "./CartIcon.svelte";
 import { getSiteConfig } from "../utils/site-config";
 import { getCustomerToken } from "../utils/customer-account";
+import { getCollections } from "../utils/medusa";
 
 const siteConfig = await getSiteConfig();
 const signedIn = Boolean(getCustomerToken(Astro.cookies));
+
+// The header's primary nav lists collections (this store has no separate
+// "menu" concept in site config today — see `SiteConfigOverlayResult`).
+// Rendered on every page, so a backend hiccup here must never take the rest
+// of the page down with it: fall back to an empty nav and log loudly, the
+// same convention `site-config.ts` uses for its own remote fetch.
+const NAV_COLLECTION_LIMIT = 5;
+const collections = await getCollections({ limit: NAV_COLLECTION_LIMIT })
+  .then((page) => page.product_categories.filter((c) => c !== null))
+  .catch((error) => {
+    console.error(
+      "[header] Failed to load collections for the primary nav; showing none.",
+      error,
+    );
+    return [];
+  });
 ---
 
 <header class="store-header sticky top-0 z-40">
   <div class="store-header__surface border-b py-3 backdrop-blur-2xl">
-    <nav class="container grid grid-cols-3 items-center">
+    <div class="container grid grid-cols-3 items-center">
       <a href="/" class="store-wordmark flex items-center">
         <span class="text-sm font-semibold sm:text-xl">
           {siteConfig.storeName}
@@ -25,6 +42,29 @@ const signedIn = Boolean(getCustomerToken(Astro.cookies));
         >
         <CartIcon client:idle />
       </div>
-    </nav>
+    </div>
+    {
+      collections.length > 0 && (
+        <nav
+          aria-label="Collections"
+          class="container mt-3 flex gap-4 overflow-x-auto pb-1 text-sm font-medium whitespace-nowrap"
+        >
+          <a href="/" class="text-zinc-600 hover:text-emerald-900">
+            Home
+          </a>
+          {collections.map((collection) => (
+            <a
+              href={`/collections/${collection.handle}`}
+              class="text-zinc-600 hover:text-emerald-900"
+            >
+              {collection.name}
+            </a>
+          ))}
+          <a href="/collections" class="text-zinc-600 hover:text-emerald-900">
+            All collections
+          </a>
+        </nav>
+      )
+    }
   </div>
 </header>
