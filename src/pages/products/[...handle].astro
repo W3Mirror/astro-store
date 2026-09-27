@@ -1,10 +1,14 @@
 ---
 import { getProductByHandle, toMoney } from "./../../utils/medusa";
 import { setCache } from "../../utils/cache";
+import {
+  getVariantAvailability,
+  resolveInitialVariant,
+} from "../../utils/variant-selection";
 
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import NotFoundLayout from "../../layouts/NotFoundLayout.astro";
-import AddToCartForm from "../../components/AddToCartForm.svelte";
+import ProductVariantPicker from "../../components/ProductVariantPicker.svelte";
 import ProductImageGallery from "../../components/ProductImageGallery.astro";
 import ProductBreadcrumb from "../../components/ProductBreadcrumb.astro";
 import ProductInformations from "../../components/ProductInformations.astro";
@@ -25,29 +29,21 @@ if (!product) {
   Astro.response.status = 404;
 }
 
-// TEMPLATE FOLLOW-UP: this page always transacts `variants[0]` and has no
-// options/variant selector (Size/Colour/Type, etc.). The store API already
-// returns every variant with its own options/price/SKU/stock for a
-// multi-variant product (see ecomm-ai's `add_product`/`update_product`
-// options+variants support), but this template was never wired to let a
-// shopper pick among them — a multi-variant product silently sells only its
-// first variant regardless of what's selected. Needs an options/variant
-// selector here (and in `AddToCartForm.svelte`) wired to the store API
-// before multi-variant products are usable on any storefront built from
-// this template. Not built in this pass — tracked as a known gap only.
-const firstVariant = product?.variants?.[0];
-const price = toMoney(firstVariant?.calculated_price);
+// The variant/option picker (`ProductVariantPicker.svelte`) owns letting a
+// shopper choose among a multi-variant product's options (Size/Colour/Type,
+// etc.) — see `utils/variant-selection.ts`. Everything below only needs the
+// SSR-selected variant (URL `?variant=<id>` if it names a real variant of
+// this product, else the first available one) so the initial HTML, JSON-LD,
+// and social/meta tags reflect the same variant the picker starts on.
+const requestedVariantId = Astro.url.searchParams.get("variant");
+const initialVariant = product
+  ? resolveInitialVariant(product, requestedVariantId)
+  : undefined;
+const price = toMoney(initialVariant?.calculated_price);
 const seo = product ? getProductSeo(product, siteConfig.storeName) : null;
-// If inventory isn't tracked (or backorders are allowed), treat the variant
-// as having unlimited stock.
-const variantQuantityAvailable =
-  firstVariant && firstVariant.manage_inventory && !firstVariant.allow_backorder
-    ? (firstVariant.inventory_quantity ?? 0)
-    : Infinity;
-const variantAvailableForSale = firstVariant
-  ? variantQuantityAvailable > 0
-  : false;
-setCache.short(Astro);
+const { availableForSale: variantAvailableForSale } =
+  getVariantAvailability(initialVariant);
+setCache.short(Astro, product ? ["product", `product:${product.handle}`] : []);
 ---
 
 {
@@ -66,7 +62,7 @@ setCache.short(Astro);
         name: product.title,
         description: product.description || seo?.description,
         image: product.images.map((image) => image?.url).filter(Boolean),
-        sku: firstVariant?.sku || undefined,
+        sku: initialVariant?.sku || undefined,
         url: new URL(
           `/products/${product.handle}`,
           Astro.url.origin,
@@ -103,16 +99,14 @@ setCache.short(Astro);
           <div class="mt-8 lg:col-span-5 lg:mt-0">
             <ProductInformations
               title={product.title}
-              price={price}
               description={product.description}
             />
 
             <div>
-              <AddToCartForm
+              <ProductVariantPicker
                 client:load
-                variantId={firstVariant?.id}
-                variantQuantityAvailable={variantQuantityAvailable}
-                variantAvailableForSale={variantAvailableForSale}
+                product={product}
+                initialVariantId={initialVariant?.id}
               />
               <WishlistControl
                 productId={product.id}

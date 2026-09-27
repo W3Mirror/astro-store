@@ -1,22 +1,14 @@
 ---
-import type { z } from "zod";
-import type { MoneyResult } from "../utils/schemas";
-import Money from "./Money.svelte";
-
 export interface Props {
-  price?: z.infer<typeof MoneyResult>;
   title: string;
   description?: string | null;
 }
-const { price, title, description } = Astro.props as Props;
+const { title, description } = Astro.props as Props;
 ---
 
 <h1 class="text-2xl font-bold text-zinc-800 sm:text-4xl">
   {title}
 </h1>
-<p class="mt-4 text-3xl font-bold text-emerald-900">
-  <Money price={price} />
-</p>
 
 {
   description?.trim() && (
