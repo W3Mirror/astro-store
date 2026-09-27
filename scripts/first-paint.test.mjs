@@ -26,21 +26,27 @@ test("keeps the home response edge-cacheable", async () => {
   const home = await read("src/pages/index.astro");
   const cache = await read("src/utils/cache.ts");
 
-  assert.match(home, /setCache\.long\(Astro\)/);
+  assert.match(home, /setCache\.long\(Astro,/);
   assert.match(cache, /public, max-age=60, stale-while-revalidate=120/);
+  assert.match(cache, /Vercel-CDN-Cache-Control/);
 });
 
-test("ships all three launch presets through the public config contract", async () => {
-  const presets = await read("src/utils/store-presets.ts");
-  const schema = await read("src/utils/schemas.ts");
-  const layout = await read("src/layouts/BaseLayout.astro");
+test("the storefront-preset feature has been fully removed", async () => {
+  const files = await Promise.all([
+    read("src/layouts/BaseLayout.astro"),
+    read("src/utils/site-config.ts"),
+    read("src/pages/index.astro"),
+    read("src/styles/global.css"),
+  ]);
 
-  for (const preset of ["minimal", "editorial", "conversion"]) {
-    assert.match(presets, new RegExp(`"${preset}"`));
+  for (const source of files) {
+    assert.doesNotMatch(source, /data-storefront-preset/);
+    assert.doesNotMatch(source, /storefrontPreset/);
   }
-  assert.match(schema, /storefrontPreset: z\.enum\(storefrontPresets\)/);
-  assert.match(
-    layout,
-    /data-storefront-preset=\{siteConfig\.storefrontPreset\}/,
-  );
+
+  // `schemas.ts` keeps a doc comment explaining why an incoming
+  // `storefrontPreset` overlay field is tolerated (ignored) rather than
+  // rejected — only the active zod field needs to be gone.
+  const schema = await read("src/utils/schemas.ts");
+  assert.doesNotMatch(schema, /storefrontPreset:\s*z\.enum/);
 });

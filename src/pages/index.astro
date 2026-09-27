@@ -5,15 +5,19 @@ import Hero from "../components/Hero.astro";
 import Products from "../components/Products.astro";
 import { setCache } from "../utils/cache";
 import { getSiteConfig } from "../utils/site-config";
-import { getPresetHeroDefaults } from "../utils/store-presets";
 import { getHomepageSeo } from "../utils/seo";
+
+// The one neutral default hero copy, used whenever the site-config overlay
+// doesn't supply its own `heroHeading`/`heroSubheading`.
+const DEFAULT_HERO_HEADING = "Considered goods for everyday life.";
+const DEFAULT_HERO_SUBHEADING =
+  "A focused collection chosen for quality, utility, and lasting appeal.";
 
 const siteConfig = await getSiteConfig();
 const seo = getHomepageSeo(siteConfig);
 const products = await getProducts({});
-const heroDefaults = getPresetHeroDefaults(siteConfig.storefrontPreset);
 
-setCache.long(Astro);
+setCache.long(Astro, ["home"]);
 ---
 
 <BaseLayout
@@ -40,8 +44,8 @@ setCache.long(Astro);
   ]}
 >
   <Hero
-    heading={siteConfig.heroHeading || heroDefaults.heading}
-    subheading={siteConfig.heroSubheading || heroDefaults.subheading}
+    heading={siteConfig.heroHeading || DEFAULT_HERO_HEADING}
+    subheading={siteConfig.heroSubheading || DEFAULT_HERO_SUBHEADING}
   />
   <Products products={products} />
 </BaseLayout>
