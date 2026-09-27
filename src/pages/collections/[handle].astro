@@ -8,7 +8,19 @@ import Products from "../../components/Products.astro";
 import ProductPaginationNav from "../../components/ProductPaginationNav.astro";
 
 const { handle } = Astro.params;
-const collection = await getCollectionByHandle({ handle: handle || "" });
+const lookup = await getCollectionByHandle({ handle: handle || "" });
+
+// A request for the raw/internal backend handle (an old bookmarked or
+// indexed URL — see `getCollectionByHandle`'s doc comment) is permanently
+// redirected to the clean, merchant-facing handle rather than rendered or
+// 404ed, carrying over any query string (sort/pagination) unchanged.
+if (lookup.kind === "redirect") {
+  const target = new URL(Astro.url);
+  target.pathname = `/collections/${lookup.canonicalHandle}`;
+  return Astro.redirect(`${target.pathname}${target.search}`, 301);
+}
+
+const collection = lookup.kind === "found" ? lookup.category : null;
 
 if (!collection) {
   Astro.response.status = 404;
@@ -39,7 +51,7 @@ const pageHref = (nextOffset: number) => {
   if (order) nextParams.set("order", order);
   nextParams.set("limit", String(limit));
   if (nextOffset > 0) nextParams.set("offset", String(nextOffset));
-  return `/collections/${handle}?${nextParams.toString()}`;
+  return `/collections/${collection?.handle ?? handle}?${nextParams.toString()}`;
 };
 ---
 

@@ -139,14 +139,50 @@ export const ProductResult = z
 // `docs-internal/collections-many-to-many.mdx`. `GET /store/product-categories`
 // already forces `is_active: true, is_internal: false` server-side, so every
 // category returned here is meant to be storefront-visible.
+//
+// ecomm-ai never stores the merchant-typed collection handle as the
+// backend's own `handle` — that field is store-scoped and hash-suffixed
+// (`uniqueCollectionHandle` in the parent repo's
+// `web-app/ecomm-ai/apps/next-app/src/lib/medusa/admin-collections-shared.ts`)
+// to keep it globally unique across every store on the shared backend. The
+// clean, merchant-facing handle (what `list_collections` reports, and what
+// this storefront must use in every URL/link) lives in
+// `metadata.display_handle` instead (`resolveDisplayHandleFrom` in that same
+// file) — falling back to the raw `handle` for a category created before
+// that convention existed, exactly like ecomm-ai's own reader does. The
+// Store API already returns `metadata` by default; it just has to be asked
+// for explicitly whenever a caller narrows `fields` (see `CATEGORY_FIELDS`
+// in `utils/medusa.ts`).
 export const CategoryResult = z
   .object({
     id: z.string(),
     name: z.string(),
     handle: z.string(),
     description: z.string().nullable().optional(),
+    metadata: z.record(z.string(), z.unknown()).nullable().optional(),
   })
-  .nullable();
+  .nullable()
+  .transform((category) => {
+    if (!category) return category;
+    const displayHandle = category.metadata?.display_handle;
+    const cleanHandle =
+      typeof displayHandle === "string" && displayHandle.trim().length > 0
+        ? displayHandle
+        : category.handle;
+    return {
+      id: category.id,
+      name: category.name,
+      // The merchant-facing handle — always what a shopper should see in a
+      // URL, and what every link in this storefront must point to.
+      handle: cleanHandle,
+      // The raw, store-scoped backend handle. Kept only so a request for
+      // this old/internal form (e.g. an already-indexed or bookmarked URL)
+      // can be 301-redirected to `handle` above instead of 404ing — see
+      // `getCollectionByHandle`.
+      rawHandle: category.handle,
+      description: category.description,
+    };
+  });
 
 export const CategoryListResult = z.object({
   product_categories: z.array(CategoryResult),

@@ -160,6 +160,14 @@ export const getProductByHandle = async (options: { handle: string }) => {
 
 const COLLECTIONS_MAX_LIMIT = 100;
 
+// `+metadata` (on top of the plain fields the old code requested) is what
+// makes `CategoryResult`'s transform able to resolve the merchant-facing
+// `handle` from `metadata.display_handle` — see that schema's doc comment.
+// Medusa returns `metadata` by default, but only while a caller doesn't
+// narrow `fields` at all; every request below does, so it must be listed
+// explicitly.
+const CATEGORY_FIELDS = "id,name,handle,description,metadata";
+
 // List every storefront-visible collection (a Medusa product category —
 // see `CategoryResult`'s doc comment). `/store/product-categories` already
 // filters to active, non-internal categories server-side.
@@ -173,32 +181,47 @@ export const getCollections = async (
     params: {
       limit,
       offset,
-      fields: "id,name,handle,description",
+      fields: CATEGORY_FIELDS,
     },
   });
 
   return CategoryListResult.parse(data);
 };
 
-// Get a collection by its handle (slug), or null if none matches — the
-// caller renders a 404 in that case, same convention as
-// `getProductByHandle`.
-export const getCollectionByHandle = async (options: { handle: string }) => {
+export type CollectionLookupResult =
+  | { kind: "found"; category: NonNullable<z.infer<typeof CategoryResult>> }
+  | { kind: "redirect"; canonicalHandle: string }
+  | { kind: "not-found" };
+
+// Resolves a `/collections/<handle>` URL segment to a category, the same
+// way ecomm-ai's `list_collections` does — by the merchant-facing
+// `metadata.display_handle`, never by guessing at the raw backend handle's
+// hash-suffix pattern (see `CategoryResult`'s doc comment). The Store API
+// has no way to filter `product_categories` by a metadata field, so this
+// scans this store's full (small, capped at `COLLECTIONS_MAX_LIMIT`)
+// collection list — the same request `getCollections` already makes,
+// costing nothing extra beyond that one call.
+//
+// A `handle` that only matches a category's raw/internal handle (an old
+// bookmarked or indexed URL, or a direct link to the pre-clean-handle
+// backend value) resolves to `{ kind: "redirect" }` so the caller can send a
+// permanent redirect to the clean URL rather than 404ing or silently
+// rendering under the wrong URL.
+export const getCollectionByHandle = async (options: {
+  handle: string;
+}): Promise<CollectionLookupResult> => {
   const { handle } = options;
 
-  const data = await medusaFetch<{ product_categories: unknown[] }>(
-    "/store/product-categories",
-    {
-      params: {
-        handle,
-        limit: 1,
-        fields: "id,name,handle,description",
-      },
-    },
-  );
+  const page = await getCollections({ limit: COLLECTIONS_MAX_LIMIT });
+  const categories = page.product_categories.filter((c) => c !== null);
 
-  const category = data.product_categories?.[0] ?? null;
-  return CategoryResult.parse(category);
+  const found = categories.find((category) => category.handle === handle);
+  if (found) return { kind: "found", category: found };
+
+  const legacy = categories.find((category) => category.rawHandle === handle);
+  if (legacy) return { kind: "redirect", canonicalHandle: legacy.handle };
+
+  return { kind: "not-found" };
 };
 
 // Medusa's Store API has no dedicated recommendations endpoint, so we fall
