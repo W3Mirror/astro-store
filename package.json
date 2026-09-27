@@ -19,7 +19,9 @@
     "test:customer-account": "node --test scripts/customer-account.test.mjs",
     "test:recommendations": "node --test scripts/recommendations-contract.test.mjs",
     "test:storefront-runtime": "node --test scripts/storefront-runtime.test.mjs",
-    "test:store-environment": "node --test scripts/test-store-environment-contract.test.mjs"
+    "test:store-environment": "node --test scripts/test-store-environment-contract.test.mjs",
+    "test:variant-selection": "node --test scripts/variant-selection.test.mjs",
+    "test:collections": "node --test scripts/collections-contract.test.mjs"
   },
   "dependencies": {
     "@astrojs/cloudflare": "^12.6.13",
