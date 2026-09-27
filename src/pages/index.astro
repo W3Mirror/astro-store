@@ -46,6 +46,8 @@ setCache.long(Astro, ["home"]);
   <Hero
     heading={siteConfig.heroHeading || DEFAULT_HERO_HEADING}
     subheading={siteConfig.heroSubheading || DEFAULT_HERO_SUBHEADING}
+    imageUrl={siteConfig.heroImageUrl}
+    imageAlt={siteConfig.heroImageAlt}
   />
   <Products products={products} />
 </BaseLayout>

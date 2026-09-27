@@ -40,6 +40,11 @@ export const SiteConfigOverlayResult = z.object({
   announcementMessage: z.string().nullable().optional(),
   heroHeading: z.string().nullable().optional(),
   heroSubheading: z.string().nullable().optional(),
+  logoUrl: z.string().nullable().optional(),
+  faviconUrl: z.string().nullable().optional(),
+  heroImageUrl: z.string().nullable().optional(),
+  heroImageAlt: z.string().nullable().optional(),
+  aboutImageUrl: z.string().nullable().optional(),
   seo: z
     .object({
       profile: z.object({
@@ -169,6 +174,12 @@ export const CategoryResult = z
       typeof displayHandle === "string" && displayHandle.trim().length > 0
         ? displayHandle
         : category.handle;
+    // Collection banner — `metadata.banner_image_url`/`banner_image_alt`,
+    // alongside `display_handle` (see the parent repo's
+    // `admin-collections-shared.ts`'s `resolveBannerFrom`, the same
+    // convention mirrored here). `null` when unset.
+    const bannerImageUrl = category.metadata?.banner_image_url;
+    const bannerImageAlt = category.metadata?.banner_image_alt;
     return {
       id: category.id,
       name: category.name,
@@ -181,6 +192,14 @@ export const CategoryResult = z
       // `getCollectionByHandle`.
       rawHandle: category.handle,
       description: category.description,
+      bannerImageUrl:
+        typeof bannerImageUrl === "string" && bannerImageUrl.length > 0
+          ? bannerImageUrl
+          : null,
+      bannerImageAlt:
+        typeof bannerImageAlt === "string" && bannerImageAlt.length > 0
+          ? bannerImageAlt
+          : null,
     };
   });
 

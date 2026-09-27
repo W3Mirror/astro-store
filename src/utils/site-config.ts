@@ -11,6 +11,14 @@ export interface SiteConfig {
   announcementMessage: string;
   heroHeading: string;
   heroSubheading: string;
+  // Branding images/alt text. `null` (not empty string) when unset, so
+  // callers can tell "no logo configured" apart from "configured as empty"
+  // and fall back to sensible defaults (the store name, no hero image, ...).
+  logoUrl: string | null;
+  faviconUrl: string | null;
+  heroImageUrl: string | null;
+  heroImageAlt: string | null;
+  aboutImageUrl: string | null;
   seo: SeoConfig | null;
 }
 
@@ -51,6 +59,11 @@ const envDefaults = (): SiteConfig => ({
   announcementMessage: config.announcementMessage,
   heroHeading: "",
   heroSubheading: "",
+  logoUrl: null,
+  faviconUrl: null,
+  heroImageUrl: null,
+  heroImageAlt: null,
+  aboutImageUrl: null,
   seo: null,
 });
 
@@ -88,6 +101,11 @@ const fetchSiteConfig = async (): Promise<SiteConfig> => {
         overlay.announcementMessage ?? defaults.announcementMessage,
       heroHeading: overlay.heroHeading || defaults.heroHeading,
       heroSubheading: overlay.heroSubheading || defaults.heroSubheading,
+      logoUrl: overlay.logoUrl || defaults.logoUrl,
+      faviconUrl: overlay.faviconUrl || defaults.faviconUrl,
+      heroImageUrl: overlay.heroImageUrl || defaults.heroImageUrl,
+      heroImageAlt: overlay.heroImageAlt || defaults.heroImageAlt,
+      aboutImageUrl: overlay.aboutImageUrl || defaults.aboutImageUrl,
       seo:
         overlay.seo?.reviewStatus === "approved"
           ? {

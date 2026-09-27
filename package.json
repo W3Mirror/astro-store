@@ -22,7 +22,8 @@
     "test:store-environment": "node --test scripts/test-store-environment-contract.test.mjs",
     "test:variant-selection": "node --test scripts/variant-selection.test.mjs",
     "test:collections": "node --test scripts/collections-contract.test.mjs",
-    "test:add-to-cart-ssr": "node --test scripts/add-to-cart-ssr.test.mjs"
+    "test:add-to-cart-ssr": "node --test scripts/add-to-cart-ssr.test.mjs",
+    "test:branding": "node --test scripts/branding-contract.test.mjs"
   },
   "dependencies": {
     "@astrojs/cloudflare": "^12.6.13",

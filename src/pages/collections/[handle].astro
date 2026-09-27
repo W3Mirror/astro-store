@@ -6,6 +6,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 import NotFoundLayout from "../../layouts/NotFoundLayout.astro";
 import Products from "../../components/Products.astro";
 import ProductPaginationNav from "../../components/ProductPaginationNav.astro";
+import ResponsiveImage from "../../components/ResponsiveImage.svelte";
 
 const { handle } = Astro.params;
 const lookup = await getCollectionByHandle({ handle: handle || "" });
@@ -70,6 +71,17 @@ const pageHref = (nextOffset: number) => {
       canonicalPath={`/collections/${collection.handle}`}
     >
       <section class="container pt-10 pb-4">
+        {collection.bannerImageUrl && (
+          <div class="mb-8 overflow-hidden rounded-lg">
+            <ResponsiveImage
+              image={{ url: collection.bannerImageUrl }}
+              alt={collection.bannerImageAlt || collection.name}
+              loading="eager"
+              fetchpriority="high"
+              sizes="100vw"
+            />
+          </div>
+        )}
         <p class="text-sm font-semibold tracking-wide text-emerald-900 uppercase">
           Collection
         </p>

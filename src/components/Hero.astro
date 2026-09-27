@@ -1,10 +1,14 @@
 ---
+import ResponsiveImage from "./ResponsiveImage.svelte";
+
 export interface Props {
   heading: string;
   subheading?: string;
+  imageUrl?: string | null;
+  imageAlt?: string | null;
 }
 
-const { heading, subheading } = Astro.props as Props;
+const { heading, subheading, imageUrl, imageAlt } = Astro.props as Props;
 ---
 
 {
@@ -12,6 +16,17 @@ const { heading, subheading } = Astro.props as Props;
     <section class="store-hero border-b">
       <div class="store-hero__wash" aria-hidden="true" />
       <div class="store-hero__inner container py-16 sm:py-24">
+        {imageUrl && (
+          <div class="store-hero__image mb-8 overflow-hidden rounded-lg">
+            <ResponsiveImage
+              image={{ url: imageUrl }}
+              alt={imageAlt || heading}
+              loading="eager"
+              fetchpriority="high"
+              sizes="100vw"
+            />
+          </div>
+        )}
         <p class="store-hero__eyebrow">The new collection</p>
         <div class="store-hero__copy">
           <h1 class="store-hero__heading text-4xl font-semibold tracking-tight sm:text-6xl">

@@ -1,5 +1,6 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
+import ResponsiveImage from "../components/ResponsiveImage.svelte";
 import { getSiteConfig } from "../utils/site-config";
 
 const siteConfig = await getSiteConfig();
@@ -23,6 +24,20 @@ const about =
     >
       About {siteConfig.seo?.profile.organizationName || siteConfig.storeName}
     </h1>
+    {
+      siteConfig.aboutImageUrl && (
+        <div class="mt-8 overflow-hidden rounded-lg">
+          <ResponsiveImage
+            image={{ url: siteConfig.aboutImageUrl }}
+            alt={
+              siteConfig.seo?.profile.organizationName || siteConfig.storeName
+            }
+            loading="eager"
+            sizes="(min-width: 768px) 768px, 100vw"
+          />
+        </div>
+      )
+    }
     <p class="mt-8 text-lg leading-8 whitespace-pre-line text-zinc-700">
       {about}
     </p>
