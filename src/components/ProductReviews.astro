@@ -1,6 +1,8 @@
-<div class="mt-10 mb-20 scroll-mt-20" id="reviews">
-  <h2 class="text-xl font-bold sm:text-2xl">Customer Reviews</h2>
-  <p class="mt-4 text-zinc-600">
-    Customer reviews are not available on this storefront.
-  </p>
-</div>
+---
+// Reviews aren't wired up to a provider yet. Rendering nothing at all (no
+// heading, no dead placeholder line about this storefront lacking the
+// feature) reads as "this product simply has no reviews section yet"
+// rather than as a broken/stubbed feature — see the reference analysis,
+// item C5. Swap this back in for a real reviews block (heading + `id=
+// "reviews"` anchor) once a provider is wired up.
+---
