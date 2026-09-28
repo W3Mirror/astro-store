@@ -269,8 +269,83 @@
     object-fit: cover;
   }
 
+  /* Item 6: second-image hover swap, desktop/hover-capable pointers only, no
+     layout shift — the secondary image is absolutely positioned over the
+     primary one (already sized by the rule above) and only ever gains
+     opacity on a device that actually supports hover. */
+  .product-card__image--secondary {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 200ms ease;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .product-card:hover .product-card__image--secondary {
+      opacity: 1;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .product-card__image--secondary {
+      transition: none;
+    }
+  }
+
+  /* Item 5: product card badges (Sold out / Sale / New), themed via
+     `--store-*` tokens including `--store-highlight`. */
+  .product-card__badges {
+    position: absolute;
+    top: 0.75rem;
+    left: 0.75rem;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.35rem;
+    pointer-events: none;
+  }
+
+  .product-card__badge {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 0.2rem 0.65rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--store-accent-contrast);
+    background: var(--store-ink);
+  }
+
+  .product-card__badge--sale {
+    background: var(--store-highlight);
+  }
+
+  .product-card__badge--new {
+    background: var(--store-accent);
+  }
+
+  .product-card__badge--sold-out {
+    background: var(--store-muted);
+  }
+
   .product-card__copy {
     color: var(--store-ink);
+  }
+
+  .product-card__price {
+    display: flex;
+    align-items: baseline;
+    gap: 0.4rem;
+  }
+
+  .product-card__compare-price {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--store-muted);
+    text-decoration: line-through;
   }
 
   /* Item 4: the PDP's sticky mobile "Add to bag" bar
@@ -363,6 +438,42 @@
 
   @media (prefers-reduced-motion: reduce) {
     .pdp-sticky-atc {
+      transition: none;
+    }
+  }
+
+  /* Item 7: the sitewide floating WhatsApp button
+     (`WhatsappFloatButton.astro`) rides up above the sticky bar above on a
+     PDP, via the `pdp:sticky-atc` window event. */
+  .whatsapp-float {
+    position: fixed;
+    right: 1rem;
+    bottom: 1.25rem;
+    z-index: 30;
+    display: flex;
+    height: 3.25rem;
+    width: 3.25rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    background: #25d366;
+    color: #fff;
+    box-shadow: 0 10px 25px rgb(28 25 23 / 25%);
+    transition:
+      bottom 200ms ease,
+      transform 150ms ease;
+  }
+
+  .whatsapp-float:hover {
+    transform: translateY(-2px);
+  }
+
+  .whatsapp-float--raised {
+    bottom: 5.5rem;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .whatsapp-float {
       transition: none;
     }
   }

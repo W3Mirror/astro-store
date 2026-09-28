@@ -2,6 +2,8 @@
 import type { z } from "zod";
 import type { ProductResult } from "../utils/schemas";
 import { toMoney } from "../utils/medusa";
+import { getDefaultVariant } from "../utils/variant-selection";
+import { getProductBadges } from "../utils/product-badges";
 
 import ResponsiveImage from "./ResponsiveImage.svelte";
 import Money from "./Money.svelte";
@@ -14,16 +16,28 @@ const { product, priority = false } = Astro.props as Props;
 const featuredImage = product?.thumbnail
   ? { url: product.thumbnail }
   : (product?.images?.[0] ?? null);
-const price = toMoney(product?.variants?.[0]?.calculated_price);
+// Item 6: desktop/hover-capable-only second-image swap — the product's next
+// distinct image, purely additive (absolutely positioned over the first, so
+// it never shifts layout; see `.product-card__image--secondary`).
+const secondaryImage =
+  product?.images?.find((image) => image?.url && image.url !== featuredImage?.url) ??
+  null;
+// The same "first in-stock, else first variant" rule the PDP uses
+// (`getDefaultVariant`) — so the card's price/sale badge always describe a
+// variant a shopper could actually buy when one exists, not just whichever
+// happens to be declared first.
+const defaultVariant = product ? getDefaultVariant(product) : undefined;
+const price = toMoney(defaultVariant?.calculated_price);
+const badges = product ? getProductBadges(product, defaultVariant) : null;
 ---
 
 <a
   href={`/products/${product?.handle}`}
   class="product-card group overflow-hidden rounded-lg"
 >
-  <div class="relative">
+  <div class="relative product-card__media">
     <ResponsiveImage
-      classList=""
+      classList="product-card__image product-card__image--primary"
       loading={priority ? "eager" : "lazy"}
       fetchpriority={priority ? "high" : "auto"}
       image={featuredImage}
@@ -37,6 +51,36 @@ const price = toMoney(product?.variants?.[0]?.calculated_price);
       calc(100vw - 48px)
     `}
     />
+    {
+      secondaryImage && (
+        <ResponsiveImage
+          classList="product-card__image product-card__image--secondary"
+          loading="lazy"
+          image={secondaryImage}
+          alt=""
+        />
+      )
+    }
+    {
+      badges && (badges.soldOut || badges.sale || badges.isNew) && (
+        <div class="product-card__badges">
+          {badges.soldOut ? (
+            <span class="product-card__badge product-card__badge--sold-out">
+              Sold out
+            </span>
+          ) : (
+            <>
+              {badges.sale && (
+                <span class="product-card__badge product-card__badge--sale">Sale</span>
+              )}
+              {badges.isNew && (
+                <span class="product-card__badge product-card__badge--new">New</span>
+              )}
+            </>
+          )}
+        </div>
+      )
+    }
     <div
       class="absolute inset-0 z-10 grid items-end justify-items-center opacity-0 transition-all group-hover:bg-black/10 group-hover:opacity-100"
     >
@@ -63,8 +107,15 @@ const price = toMoney(product?.variants?.[0]?.calculated_price);
   </div>
   <div class="product-card__copy flex justify-between px-5 py-6">
     <h3 class="group-hover:underline">{product?.title}</h3>
-    <p class="font-bold">
+    <p class="product-card__price font-bold">
       <Money price={price} />
+      {
+        badges?.comparePrice && (
+          <span class="product-card__compare-price">
+            <Money price={badges.comparePrice} />
+          </span>
+        )
+      }
     </p>
   </div>
 </a>

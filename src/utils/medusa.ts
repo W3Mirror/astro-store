@@ -20,8 +20,11 @@ import { config } from "./config";
 // Fields requested on top of Medusa's defaults for /store/products so we get
 // calculated prices (needs `region_id`), inventory and variant options.
 // `+` adds to the default field set, `*` expands a relation.
+// `+created_at` is very likely already part of the Store API's default
+// product field set, but is listed explicitly (never assumed) since the
+// product card's "New" badge (`utils/product-badges.ts`) depends on it.
 const PRODUCT_FIELDS =
-  "*variants.calculated_price,+variants.inventory_quantity,+variants.allow_backorder,+variants.manage_inventory,+variants.metadata,*variants.options,+options,+images,+categories.id,+categories.name";
+  "*variants.calculated_price,+variants.inventory_quantity,+variants.allow_backorder,+variants.manage_inventory,+variants.metadata,*variants.options,+options,+images,+categories.id,+categories.name,+created_at";
 
 // Cart line items don't include per-item totals by default, only the unit
 // price — request them explicitly. Shipping methods default to amount/option

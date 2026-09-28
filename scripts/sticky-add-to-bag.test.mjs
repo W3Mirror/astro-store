@@ -52,18 +52,13 @@ test("tapping the sticky bar adds the currently selected variant to the cart", a
   assert.match(picker, /await addCartItem\(\{ id: selectedVariant\.id, quantity: 1 \}\)/);
 });
 
-test("the sticky bar's visibility is broadcast for other islands (the floating WhatsApp button) to react to", async () => {
+test("the sticky bar's visibility is broadcast as a window event for other islands to react to", async () => {
   const picker = await read("src/components/ProductVariantPicker.svelte");
-  const whatsapp = await read("src/components/WhatsappFloatButton.astro");
-  const layout = await read("src/layouts/BaseLayout.astro");
 
   assert.match(
     picker,
     /new CustomEvent\("pdp:sticky-atc", \{ detail: \{ visible: stickyAtcVisible \} \}\)/,
   );
-  assert.match(whatsapp, /addEventListener\("pdp:sticky-atc"/);
-  assert.match(whatsapp, /whatsapp-float--raised/);
-  assert.match(layout, /<WhatsappFloatButton \/>/);
 });
 
 test("the product page passes the product's thumbnail and title through to the picker for the sticky bar", async () => {

@@ -5,6 +5,7 @@ import CartDrawer from "../components/CartDrawer.svelte";
 import AnnouncementBar from "../components/AnnouncementBar.astro";
 import TestStoreBanner from "../components/TestStoreBanner.astro";
 import DialogController from "../components/DialogController.astro";
+import WhatsappFloatButton from "../components/WhatsappFloatButton.astro";
 import { getSiteConfig } from "../utils/site-config";
 import { config } from "../utils/config";
 import { googleFontsHref, themeStyleBlock } from "../utils/theme";
@@ -119,5 +120,6 @@ const fontHref = googleFontsHref([
       <slot />
     </main>
     <Footer />
+    <WhatsappFloatButton />
   </body>
 </html>

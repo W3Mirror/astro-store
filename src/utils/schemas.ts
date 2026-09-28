@@ -221,6 +221,10 @@ export const ProductResult = z
     images: z.array(ImageResult).optional().default([]),
     options: z.array(ProductOptionResult).optional().default([]),
     variants: z.array(VariantResult).optional().default([]),
+    // Drives the product card's "New" badge (`utils/product-badges.ts`) — a
+    // plain ISO timestamp, one of the Store API's own default product
+    // fields (see `+created_at` in `PRODUCT_FIELDS`, `utils/medusa.ts`).
+    created_at: z.string().nullable().optional(),
   })
   .nullable();
 

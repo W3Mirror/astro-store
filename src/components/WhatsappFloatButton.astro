@@ -1,0 +1,53 @@
+---
+// Item 7: a sitewide floating WhatsApp click-to-chat button — rendered once
+// by `BaseLayout.astro` (never per-page), only when the store has a valid
+// `whatsapp_number` set (see `utils/contact.ts`). Distinct from the
+// existing text link in the mobile nav drawer (`Header.astro`), which stays
+// as-is: that's a discoverable menu item, this is an always-visible
+// affordance on every page.
+import { getSiteConfig } from "../utils/site-config";
+import { isValidWhatsappNumber, whatsappLink } from "../utils/contact";
+
+const siteConfig = await getSiteConfig();
+const href = isValidWhatsappNumber(siteConfig.whatsappNumber)
+  ? whatsappLink(siteConfig.whatsappNumber)
+  : null;
+---
+
+{
+  href && (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      class="whatsapp-float"
+      aria-label={`Chat with ${siteConfig.storeName} on WhatsApp`}
+    >
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 32 32"
+        fill="currentColor"
+        class="h-7 w-7"
+        aria-hidden="true"
+      >
+        <path d="M16.001 3C9.373 3 4 8.373 4 15.001c0 2.386.699 4.606 1.902 6.474L4 29l7.73-1.865A11.94 11.94 0 0 0 16.001 27C22.629 27 28 21.627 28 15.001 28 8.373 22.629 3 16.001 3Zm6.995 17.06c-.294.827-1.454 1.514-2.386 1.712-.633.132-1.46.238-4.243-.91-3.56-1.474-5.85-5.086-6.027-5.322-.17-.236-1.452-1.933-1.452-3.687 0-1.754.914-2.613 1.24-2.972.325-.359.707-.448.943-.448.236 0 .472.002.679.012.218.011.51-.083.798.61.294.71.997 2.464 1.084 2.644.088.18.147.393.03.63-.118.236-.176.383-.353.59-.177.207-.372.462-.531.62-.177.176-.362.368-.156.723.207.354.92 1.518 1.975 2.459 1.357 1.21 2.5 1.585 2.855 1.762.354.177.56.148.766-.09.207-.236.885-1.031 1.121-1.386.236-.354.472-.295.795-.177.324.117 2.06.972 2.414 1.149.354.177.59.265.678.413.089.147.089.85-.205 1.678Z" />
+      </svg>
+    </a>
+  )
+}
+
+<script>
+  window.addEventListener("pdp:sticky-atc", (event) => {
+    const visible = Boolean(
+      (event as CustomEvent<{ visible: boolean }>).detail?.visible,
+    );
+    document
+      .querySelectorAll<HTMLElement>(".whatsapp-float")
+      .forEach((el) => el.classList.toggle("whatsapp-float--raised", visible));
+  });
+</script>
+
+<!-- Styled globally (`.whatsapp-float`/`.whatsapp-float--raised` in
+     `src/styles/global.css`), not with a component-scoped `<style>` block
+     here — see that file's comment on this button. -->
+

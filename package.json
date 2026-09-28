@@ -30,7 +30,9 @@
     "test:option-pickers": "node --test scripts/option-pickers.test.mjs",
     "test:reviews": "node --test scripts/reviews-contract.test.mjs",
     "test:search": "node --test scripts/search-contract.test.mjs",
-    "test:sticky-add-to-bag": "node --test scripts/sticky-add-to-bag.test.mjs"
+    "test:sticky-add-to-bag": "node --test scripts/sticky-add-to-bag.test.mjs",
+    "test:product-badges": "node --test scripts/product-badges.test.mjs",
+    "test:whatsapp-float-button": "node --test scripts/whatsapp-float-button.test.mjs"
   },
   "dependencies": {
     "@astrojs/cloudflare": "^12.6.13",
