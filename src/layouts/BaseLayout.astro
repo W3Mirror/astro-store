@@ -18,6 +18,10 @@ export interface Props {
   image?: string;
   type?: "website" | "product";
   jsonLd?: unknown | unknown[];
+  // A page-level robots directive (e.g. an UNLISTED product's
+  // "noindex, follow" — see `utils/visibility.js`). It can only make a page
+  // LESS indexable: a test build, preview, or non-indexable store still wins.
+  robots?: string | null;
 }
 
 const siteConfig = await getSiteConfig();
@@ -30,6 +34,7 @@ const {
   image,
   type = "website",
   jsonLd,
+  robots: pageRobots,
 } = Astro.props as Props;
 const canonical = new URL(canonicalPath, Astro.url.origin).toString();
 // A test-environment build always wins over the remote site-config overlay:
@@ -41,7 +46,7 @@ const robots =
   Astro.locals.preview ||
   siteConfig.seo?.profile.indexable === false
     ? "noindex, nofollow"
-    : "index, follow";
+    : (pageRobots ?? "index, follow");
 const jsonLdItems = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
 
 // Typed THEME settings: a `:root{...}` override block built ONLY from

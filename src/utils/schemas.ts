@@ -138,6 +138,13 @@ export const SiteConfigOverlayResult = z.object({
   heroSlides: z.array(z.unknown()).nullable().optional().catch(null),
   heroAutoplaySeconds: z.number().nullable().optional().catch(null),
   theme: ThemeOverlayResult.nullable().optional(),
+  // The store's LISTING publishable key (public by design, like
+  // `PUBLIC_MEDUSA_PUBLISHABLE_KEY`), or null while the store has never
+  // unlisted a product. Product listings, search, collections, the
+  // sitemap and llms.txt read through it so UNLISTED products (reachable
+  // only at their product URL) stay out of them — see `utils/visibility.ts`.
+  // `.catch(null)`: a malformed value must never drop every other setting.
+  listingPublishableKey: z.string().min(1).nullable().optional().catch(null),
   seo: z
     .object({
       profile: z.object({

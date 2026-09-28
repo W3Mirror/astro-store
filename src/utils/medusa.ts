@@ -18,6 +18,7 @@ import {
 import { config } from "./config";
 import type { PreviewData } from "./preview-context";
 import { findPreviewProductByHandle, mergePreviewPage } from "./preview.js";
+import { isUnlisted, listingKeyOr, withoutUnlisted } from "./visibility.js";
 
 // Fields requested on top of Medusa's defaults for /store/products so we get
 // calculated prices (needs `region_id`), inventory and variant options.
@@ -79,6 +80,9 @@ const medusaFetch = async <T>(
     method?: "GET" | "POST" | "DELETE";
     params?: Record<string, unknown>;
     body?: Record<string, unknown>;
+    // Overrides the storefront's own key — only ever the LISTING key, for
+    // list reads (`catalogFetch`).
+    publishableKey?: string;
   } = {},
 ): Promise<T> => {
   const { method = "GET", params, body } = options;
@@ -87,7 +91,8 @@ const medusaFetch = async <T>(
     method,
     headers: {
       "Content-Type": "application/json",
-      "x-publishable-api-key": config.medusaPublishableKey,
+      "x-publishable-api-key":
+        options.publishableKey ?? config.medusaPublishableKey,
     },
     body: body ? JSON.stringify(body) : undefined,
   });
@@ -97,6 +102,45 @@ const medusaFetch = async <T>(
   }
 
   return response.json();
+};
+
+// The store's LISTING publishable key from the site config (server-only —
+// every list read below runs in page frontmatter), or null. Imported lazily
+// so the cart/checkout islands that share this module never bundle the
+// site-config fetch. See `utils/visibility.js`.
+const listingPublishableKey = async (): Promise<string | null> => {
+  if (!import.meta.env.SSR) return null;
+  try {
+    const { getSiteConfig } = await import("./site-config");
+    return (await getSiteConfig()).listingPublishableKey;
+  } catch (error) {
+    console.error("[catalog] could not read the listing key", error);
+    return null;
+  }
+};
+
+// A LIST read (listings, search, collections, homepage, recommendations,
+// sitemap, llms.txt): through the listing key when the store has one, so
+// the Store API itself leaves unlisted products out (with correct counts).
+// If that read fails, retries with the storefront's own key — callers then
+// drop unlisted products themselves (`withoutUnlisted`).
+const catalogFetch = async <T>(
+  path: string,
+  params: Record<string, unknown>,
+): Promise<T> => {
+  const listingKey = await listingPublishableKey();
+  const publishableKey = listingKeyOr(listingKey, config.medusaPublishableKey);
+  if (publishableKey !== config.medusaPublishableKey) {
+    try {
+      return await medusaFetch<T>(path, { params, publishableKey });
+    } catch (error) {
+      console.error(
+        `[catalog] listing read of ${path} failed; using the storefront key`,
+        error,
+      );
+    }
+  }
+  return medusaFetch<T>(path, { params });
 };
 
 export interface ProductPageOptions {
@@ -164,20 +208,18 @@ export const getProductPage = async (
   const limit = boundedInteger(options.limit, 10, 1, PRODUCT_PAGE_MAX_LIMIT);
   const offset = boundedInteger(options.offset, 0, 0, PRODUCT_PAGE_MAX_OFFSET);
 
-  const data = await medusaFetch<unknown>("/store/products", {
-    params: {
-      limit,
-      offset,
-      q: trimmedParam(options.q),
-      collection_id: trimmedParam(options.collectionId),
-      category_id: trimmedCategoryIds(options.categoryId),
-      order: trimmedParam(options.order, 80),
-      region_id: config.medusaRegionId,
-      fields: PRODUCT_FIELDS,
-    },
+  const data = await catalogFetch<unknown>("/store/products", {
+    limit,
+    offset,
+    q: trimmedParam(options.q),
+    collection_id: trimmedParam(options.collectionId),
+    category_id: trimmedCategoryIds(options.categoryId),
+    order: trimmedParam(options.order, 80),
+    region_id: config.medusaRegionId,
+    fields: PRODUCT_FIELDS,
   });
 
-  const page = ProductPageResult.parse(data);
+  const page = withoutUnlisted(ProductPageResult.parse(data));
   return preview
     ? mergePreviewPage(page, preview, {
         q: options.q,
@@ -313,8 +355,9 @@ export const getProductRecommendations = async (options: {
     return [];
   }
 
-  const data = await medusaFetch<{ products: unknown[] }>("/store/products", {
-    params: categoryId
+  const data = await catalogFetch<{ products: unknown[] }>(
+    "/store/products",
+    categoryId
       ? {
           category_id: categoryId,
           region_id: config.medusaRegionId,
@@ -327,11 +370,11 @@ export const getProductRecommendations = async (options: {
           limit: limit + 1,
           fields: PRODUCT_FIELDS,
         },
-  });
+  );
 
   const ProductsResult = z.array(ProductResult);
   const parsedProducts = ProductsResult.parse(data.products).filter(
-    (product) => product?.id !== productId,
+    (product) => product?.id !== productId && !isUnlisted(product),
   );
 
   return parsedProducts.slice(0, limit);
@@ -353,7 +396,29 @@ export const getStoreRecommendations = async (options: {
       limit: Math.max(1, Math.min(8, options.limit ?? 4)),
     },
   });
-  return StoreRecommendationsResult.parse(data).recommendations;
+  const recommendations = StoreRecommendationsResult.parse(data).recommendations;
+  return onlyListedRecommendations(recommendations);
+};
+
+// The recommendations endpoint only answers for the storefront's own key,
+// which also sees UNLISTED products — keep only the ones the listing key
+// can see. Throws when that check fails, so the caller falls back to the
+// (listing-key) same-collection recommendations instead.
+const onlyListedRecommendations = async <T extends { product: { id: string } }>(
+  recommendations: T[],
+): Promise<T[]> => {
+  const listingKey = await listingPublishableKey();
+  if (!listingKey || recommendations.length === 0) return recommendations;
+  const ids = recommendations.map((entry) => entry.product.id);
+  const data = await medusaFetch<{ products?: { id: string }[] }>(
+    "/store/products",
+    {
+      params: { id: ids, limit: ids.length, fields: "id" },
+      publishableKey: listingKey,
+    },
+  );
+  const listed = new Set((data.products ?? []).map((product) => product.id));
+  return recommendations.filter((entry) => listed.has(entry.product.id));
 };
 
 // Create a cart with a first line item and return the cart object

@@ -22,6 +22,7 @@ import RecommendationSignal from "../../components/RecommendationSignal.svelte";
 import { config } from "../../utils/config";
 import { getPreview } from "../../utils/preview-context";
 import { previewStateOf } from "../../utils/preview.js";
+import { isUnlisted, productRobots } from "../../utils/visibility.js";
 import PreviewProductNotice from "../../components/PreviewProductNotice.astro";
 
 const { handle } = Astro.params;
@@ -30,6 +31,13 @@ const product = await getProductByHandle({ handle: handle || "" }, preview);
 // Preview-link requests only (`null` otherwise): a DRAFT can't be bought,
 // and a product with staged changes still checks out at its live price.
 const previewState = product ? previewStateOf(preview, product.id) : null;
+// An UNLISTED product (only reachable at this URL) is never indexed — see
+// `utils/visibility.js`. Preview requests already get their own noindex.
+const unlisted = isUnlisted(product);
+const robots = productRobots(product);
+if (robots && !preview) {
+  Astro.response.headers.set("X-Robots-Tag", robots);
+}
 const siteConfig = await getSiteConfig();
 
 if (!product) {
@@ -63,6 +71,7 @@ setCache.short(Astro, product ? ["product", `product:${product.handle}`] : []);
       canonicalPath={`/products/${product.handle}`}
       image={product.thumbnail || product.images[0]?.url}
       type="product"
+      robots={robots}
       jsonLd={{
         "@context": "https://schema.org",
         "@type": "Product",
@@ -105,7 +114,9 @@ setCache.short(Astro, product ? ["product", `product:${product.handle}`] : []);
 
           <div class="mt-8 lg:col-span-5 lg:mt-0">
             <ProductInformations title={product.title} />
-            {previewState && <PreviewProductNotice state={previewState} />}
+            {(previewState || (preview && unlisted)) && (
+              <PreviewProductNotice state={previewState} unlisted={unlisted} />
+            )}
 
             <div>
               <ProductVariantPicker

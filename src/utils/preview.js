@@ -15,6 +15,8 @@
 // `applyPreviewResponseHeaders`), and preview data is only ever merged into
 // a page when the request itself carries a preview token.
 
+import { isUnlisted } from "./visibility.js";
+
 export const PREVIEW_PARAM = "preview";
 export const PREVIEW_COOKIE = "store_preview";
 export const PREVIEW_EXIT_VALUE = "exit";
@@ -118,7 +120,7 @@ export const matchesPreviewFilters = (product, filters = {}) => {
 };
 
 /**
- * @typedef {{ id: string, handle: string, title: string, description?: string | null, collection_id?: string | null, categories?: { id: string }[] }} PreviewableProduct
+ * @typedef {{ id: string, handle: string, title: string, description?: string | null, collection_id?: string | null, categories?: { id: string }[], metadata?: Record<string, unknown> | null }} PreviewableProduct
  * @typedef {{ state: "draft" | "pending", product: PreviewableProduct }} PreviewEntry
  * @typedef {{ entries: PreviewEntry[] }} PreviewLike
  */
@@ -143,6 +145,8 @@ export const replacePendingProducts = (products, preview) => {
 // A live product page merged with the preview: products with staged changes
 // are replaced in place, and DRAFT products matching the page's filters are
 // added in front — on the first page only, so paging never repeats them.
+// An UNLISTED draft is left out, exactly as the live listing will leave it
+// out once it is published (its product page still previews it).
 /**
  * @template {PreviewableProduct | null} T
  * @template {{ products: T[], count: number }} P
@@ -162,6 +166,7 @@ export const mergePreviewPage = (page, preview, filters = {}) => {
           .filter(
             (entry) =>
               entry.state === "draft" &&
+              !isUnlisted(entry.product) &&
               !liveIds.has(entry.product.id) &&
               matchesPreviewFilters(entry.product, filters),
           )

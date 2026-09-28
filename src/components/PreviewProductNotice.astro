@@ -3,16 +3,28 @@
 // is looking at on a product page — a DRAFT (not on the live store, can't
 // be bought), or a product with staged changes (shown as they'll look once
 // published; the bag and checkout still use the current live prices,
-// because staged prices are never charged).
+// because staged prices are never charged) — and whether it is UNLISTED
+// (only reachable at its product link; see `utils/visibility.js`).
 export interface Props {
-  state: "draft" | "pending";
+  state: "draft" | "pending" | null;
+  unlisted?: boolean;
 }
-const { state } = Astro.props as Props;
+const { state, unlisted = false } = Astro.props as Props;
 ---
 
-<div class="preview-product-notice mt-4 rounded-md px-4 py-3 text-sm" role="note" data-preview-state={state}>
+<div class="preview-product-notice mt-4 rounded-md px-4 py-3 text-sm" role="note" data-preview-state={state ?? "live"} data-preview-unlisted={unlisted ? "true" : undefined}>
   {
-    state === "draft" ? (
+    unlisted && (
+      <p>
+        <span class="preview-badge">Unlisted</span> Only reachable at this
+        product link: hidden from product listings, search, collections and
+        the sitemap, and not indexed by search engines. It can still be
+        bought here.
+      </p>
+    )
+  }
+  {
+    state === null ? null : state === "draft" ? (
       <p>
         <span class="preview-badge">Draft</span> Not on the live store yet.
         Adding to the bag is disabled in this preview.

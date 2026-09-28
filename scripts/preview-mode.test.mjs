@@ -213,7 +213,10 @@ test("drafts can't be added to the bag; staged prices are never charged", async 
     read("src/components/ProductCard.astro"),
   ]);
   assert.match(pdp, /purchaseBlocked=\{previewState === "draft"\}/);
-  assert.match(pdp, /<PreviewProductNotice state=\{previewState\} \/>/);
+  assert.match(
+    pdp,
+    /<PreviewProductNotice state=\{previewState\} unlisted=\{unlisted\} \/>/,
+  );
   assert.match(picker, /disabled=\{purchaseBlocked \|\|/);
   assert.match(picker, /if \(purchaseBlocked \|\|/);
   assert.match(form, /disabled=\{purchaseBlocked \|\|/);
@@ -222,6 +225,7 @@ test("drafts can't be added to the bag; staged prices are never charged", async 
   assert.match(notice, /Draft/);
   assert.match(notice, /Pending changes/);
   assert.match(notice, /current live\s+price/);
+  assert.match(notice, /Unlisted/);
   assert.match(card, /"Draft" : "Pending changes"/);
 });
 

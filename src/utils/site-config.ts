@@ -48,6 +48,9 @@ export interface SiteConfig {
   // unset, meaning "use the template default" (never an empty string).
   theme: SiteThemeConfig;
   seo: SeoConfig | null;
+  // Publishable key for product LISTINGS (see `utils/visibility.ts`); null
+  // means "no listing key" — listings then use the storefront's own key.
+  listingPublishableKey: string | null;
 }
 
 export interface SeoConfig {
@@ -120,6 +123,7 @@ const envDefaults = (): SiteConfig => ({
     announcementStyle: null,
   },
   seo: null,
+  listingPublishableKey: null,
 });
 
 // Fetches the public site-config JSON and overlays it on the env-based
@@ -196,6 +200,7 @@ const fetchSiteConfig = async (): Promise<SiteConfig> => {
               profile: overlay.seo.profile,
             }
           : null,
+      listingPublishableKey: overlay.listingPublishableKey ?? null,
     };
   } catch (error) {
     console.error(
