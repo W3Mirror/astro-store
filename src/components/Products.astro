@@ -8,16 +8,24 @@ export interface Props {
   products: z.infer<typeof ProductsResult>;
   eyebrow?: string;
   heading?: string;
+  // Skips this component's own `.container` padding — for a caller that
+  // already renders inside its own `.container` (the `/products` and
+  // `/collections/<handle>` filter sidebar layouts), so the two don't
+  // double up `.container`'s padding-inline. The homepage (this
+  // component's other caller) renders it standalone and needs the default
+  // `false` behavior.
+  bare?: boolean;
 }
 const {
   products,
   eyebrow = "Selected for you",
   heading = "Featured collection",
+  bare = false,
 } = Astro.props as Props;
 ---
 
 <section id="featured-products" class="products-section">
-  <div class="container py-16 sm:py-20">
+  <div class:list={[bare ? "" : "container", "py-16 sm:py-20"]}>
     <div class="products-section__heading">
       <p>{eyebrow}</p>
       <h2>{heading}</h2>

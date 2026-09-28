@@ -158,6 +158,7 @@ const pageHref = (nextOffset: number) =>
             products={pageProducts}
             eyebrow={query ? "Search" : "Catalog"}
             heading={query ? `Results for “${query}”` : "All products"}
+            bare
           />
         ) : (
           <p class="py-16 text-center text-zinc-600">
