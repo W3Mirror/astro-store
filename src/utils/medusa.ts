@@ -24,7 +24,7 @@ import { config } from "./config";
 // product field set, but is listed explicitly (never assumed) since the
 // product card's "New" badge (`utils/product-badges.ts`) depends on it.
 const PRODUCT_FIELDS =
-  "*variants.calculated_price,+variants.inventory_quantity,+variants.allow_backorder,+variants.manage_inventory,+variants.metadata,+variants.thumbnail,variants.images.id,variants.images.url,*variants.options,+options,+images,+categories.id,+categories.name,+created_at";
+  "*variants.calculated_price,+variants.inventory_quantity,+variants.allow_backorder,+variants.manage_inventory,+variants.metadata,+variants.thumbnail,+variants.images.id,+variants.images.url,*variants.options,+options,+images,+categories.id,+categories.name,+created_at";
 
 // Cart line items don't include per-item totals by default, only the unit
 // price — request them explicitly. Shipping methods default to amount/option
