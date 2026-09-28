@@ -49,15 +49,6 @@
 @layer base {
   html {
     @apply scroll-smooth;
-    /* Symmetric gutters on classic-scrollbar platforms (Windows, Linux,
-       macOS with "always show scroll bars"): every `.container` is centered
-       inside the layout viewport, which EXCLUDES the vertical scrollbar, so
-       seen from the window's edges the right gutter was always one
-       scrollbar-width (~15px) wider than the left — at 1280, 1440 and 1920
-       alike (24px vs 39px of padding at 1280/1440; 216px vs 231px at
-       1920). Reserving the same space on both edges centers content on the
-       window. A no-op with overlay scrollbars (mobile, default macOS). */
-    scrollbar-gutter: stable both-edges;
   }
 
   body {

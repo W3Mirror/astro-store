@@ -544,7 +544,10 @@ test("carousel script wires keyboard arrows, swipe, visibility and reduced motio
   assert.match(component, /initHeroCarousel\(root, window\)/);
 });
 
-test("layout: symmetric gutters regardless of scrollbar type", async () => {
+test("layout: no reserved scrollbar gutter (full-bleed bars reach both edges)", async () => {
+  // `scrollbar-gutter: stable both-edges` left an empty strip on the LEFT
+  // edge with classic scrollbars, where full-bleed bars (announcement,
+  // header) visibly stopped short of the window edge.
   const css = await read("src/styles/global.css");
-  assert.match(css, /scrollbar-gutter: stable both-edges;/);
+  assert.doesNotMatch(css, /scrollbar-gutter/);
 });
