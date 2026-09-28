@@ -263,3 +263,54 @@ test("purchasability flips to false only once tracked stock actually reaches zer
   assert.equal(nullQuantity.availableForSale, false);
   assert.equal(nullQuantity.quantityAvailable, 0);
 });
+
+// --- getVariantImageUrl / getVariantImageAlt --------------------------------
+
+test("getVariantImageUrl: prefers the native thumbnail over images and metadata", () => {
+  const v = variant("var_ray_u", "Rayon", "Unstitched", {
+    thumbnail: "https://example.com/thumb.png",
+    images: [{ url: "https://example.com/first.png" }],
+    metadata: { image_url: "https://example.com/meta.png" },
+  });
+  assert.equal(
+    variantSelection.getVariantImageUrl(v),
+    "https://example.com/thumb.png",
+  );
+});
+
+test("getVariantImageUrl: falls back to the first native image when there's no thumbnail", () => {
+  const v = variant("var_ray_u", "Rayon", "Unstitched", {
+    images: [{ url: "https://example.com/first.png" }],
+    metadata: { image_url: "https://example.com/meta.png" },
+  });
+  assert.equal(
+    variantSelection.getVariantImageUrl(v),
+    "https://example.com/first.png",
+  );
+});
+
+test("getVariantImageUrl: falls back to metadata.image_url when there's no native image at all", () => {
+  const v = variant("var_ray_u", "Rayon", "Unstitched", {
+    metadata: { image_url: "https://example.com/meta.png" },
+  });
+  assert.equal(
+    variantSelection.getVariantImageUrl(v),
+    "https://example.com/meta.png",
+  );
+});
+
+test("getVariantImageUrl: undefined when neither native nor metadata has an image", () => {
+  const v = variant("var_ray_u", "Rayon", "Unstitched");
+  assert.equal(variantSelection.getVariantImageUrl(v), undefined);
+  assert.equal(variantSelection.getVariantImageUrl(undefined), undefined);
+  assert.equal(variantSelection.getVariantImageUrl(null), undefined);
+});
+
+test("getVariantImageAlt: reads metadata.image_alt, undefined otherwise", () => {
+  const withAlt = variant("var_ray_u", "Rayon", "Unstitched", {
+    metadata: { image_alt: "Rayon swatch" },
+  });
+  assert.equal(variantSelection.getVariantImageAlt(withAlt), "Rayon swatch");
+  const withoutAlt = variant("var_ray_u", "Rayon", "Unstitched");
+  assert.equal(variantSelection.getVariantImageAlt(withoutAlt), undefined);
+});

@@ -1,19 +1,13 @@
 ---
+// The product description itself now lives in the PDP's "Description"
+// accordion (`ProductAccordions.astro`), not here — this component only
+// ever renders the title.
 export interface Props {
   title: string;
-  description?: string | null;
 }
-const { title, description } = Astro.props as Props;
+const { title } = Astro.props as Props;
 ---
 
 <h1 class="text-2xl font-bold text-zinc-800 sm:text-4xl">
   {title}
 </h1>
-
-{
-  description?.trim() && (
-    <p class="mt-6 text-base whitespace-pre-line text-zinc-700">
-      {description}
-    </p>
-  )
-}

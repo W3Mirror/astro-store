@@ -146,18 +146,33 @@ export const needsVariantPicker = (
   product: Pick<Product, "options" | "variants">,
 ): boolean => product.variants.length > 1 && product.options.length > 0;
 
-// Per-variant imagery isn't a first-class product relation in Medusa yet —
-// see `VariantResult`'s doc comment in `schemas.ts`. Until it is, a
-// merchant can set `metadata.image_url` on a variant and this picks it up;
-// absent metadata (the common case today) returns `undefined` so callers
-// fall back to today's behavior exactly (no image, plain text chip).
+// Prefers the native per-variant image (`thumbnail`, else the first
+// `images` entry), falling back to `metadata.image_url` for a store whose
+// variant images predate the native relation, or any other non-native
+// write — see `VariantResult`'s doc comment in `schemas.ts`. Returns
+// `undefined` when none of these are set, so callers fall back to today's
+// behavior exactly (no image, plain text chip).
 export const getVariantImageUrl = (
   variant: Variant | undefined | null,
 ): string | undefined => {
-  const url = variant?.metadata?.image_url;
-  return typeof url === "string" && url.trim().length > 0
-    ? url
+  const native = variant?.thumbnail ?? variant?.images?.[0]?.url;
+  if (typeof native === "string" && native.trim().length > 0) return native;
+  const metadataUrl = variant?.metadata?.image_url;
+  return typeof metadataUrl === "string" && metadataUrl.trim().length > 0
+    ? metadataUrl
     : undefined;
+};
+
+// `metadata.image_alt` is the only source for a variant image's alt text
+// today (the native `ProductImage` relation has no alt field wired to this
+// write path — see `admin-product-images-attach.ts`'s doc comment on that
+// gap). Falls back to `undefined` so callers can fall back to a generic alt
+// (e.g. the variant's own title).
+export const getVariantImageAlt = (
+  variant: Variant | undefined | null,
+): string | undefined => {
+  const alt = variant?.metadata?.image_alt;
+  return typeof alt === "string" && alt.trim().length > 0 ? alt : undefined;
 };
 
 // Generic (never store-specific) option-name matchers — used to decide

@@ -21,6 +21,7 @@
     type VariantSelection,
   } from "../utils/variant-selection";
   import { toMoney } from "../utils/medusa";
+  import { compareAtPrice } from "../utils/product-badges";
   import { addCartItem, isCartUpdating } from "../stores/cart";
   import Money from "./Money.svelte";
   import AddToCartForm from "./AddToCartForm.svelte";
@@ -75,21 +76,11 @@
   );
   let availability = $derived(getVariantAvailability(selectedVariant));
   let price = $derived(toMoney(selectedVariant?.calculated_price));
-  let comparePrice = $derived.by(() => {
-    const calculated = selectedVariant?.calculated_price;
-    if (
-      !calculated ||
-      calculated.original_amount === null ||
-      calculated.calculated_amount === null ||
-      calculated.original_amount <= calculated.calculated_amount
-    ) {
-      return undefined;
-    }
-    return {
-      amount: calculated.original_amount,
-      currency_code: calculated.currency_code || "inr",
-    };
-  });
+  // Shared with the product card's Sale badge (`product-badges.ts`'s
+  // `compareAtPrice`) so the PDP and card never disagree on which source
+  // (a real calculated-price discount, or a merchant-set
+  // `metadata.compare_at_price`) is showing.
+  let comparePrice = $derived(compareAtPrice(selectedVariant));
 
   function selectValue(optionId: string, value: string) {
     selection = { ...selection, [optionId]: value };
@@ -244,8 +235,9 @@
     window.history.replaceState(window.history.state, "", url);
   });
 
-  // Rule 4d (part 2): a variant with its own image (`metadata.image_url` —
-  // see `getVariantImageUrl`) drives the PDP gallery's main image too, not
+  // Rule 4d (part 2): a variant with its own image (native `thumbnail`/
+  // `images`, or `metadata.image_url` — see `getVariantImageUrl`) drives
+  // the PDP gallery's main image too, not
   // just its own swatch. The gallery is a separate Astro/vanilla-JS island
   // with no shared store, so a plain window CustomEvent is the simplest
   // cross-island bridge; it fires with `url: null` to tell the gallery to

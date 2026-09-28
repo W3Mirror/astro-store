@@ -25,6 +25,10 @@ export interface SiteConfig {
   whatsappNumber: string | null;
   sizeChartImageUrl: string | null;
   customFitNote: string | null;
+  // PDP accordion bodies — see `ProductAccordions.astro`. `null` when unset,
+  // which hides that accordion entirely.
+  shippingText: string | null;
+  returnsText: string | null;
   // Whether to render the Test-build "orders aren't real" banner. Defaults
   // to `true` (shown) — see `TestStoreBanner.astro`. Irrelevant on a LIVE
   // build, which never renders that banner regardless of this value.
@@ -81,6 +85,8 @@ const envDefaults = (): SiteConfig => ({
   whatsappNumber: null,
   sizeChartImageUrl: null,
   customFitNote: null,
+  shippingText: null,
+  returnsText: null,
   showTestBanner: true,
   theme: {
     accent: null,
@@ -143,6 +149,8 @@ const fetchSiteConfig = async (): Promise<SiteConfig> => {
       sizeChartImageUrl:
         overlay.sizeChartImageUrl || defaults.sizeChartImageUrl,
       customFitNote: overlay.customFitNote || defaults.customFitNote,
+      shippingText: overlay.shippingText || defaults.shippingText,
+      returnsText: overlay.returnsText || defaults.returnsText,
       showTestBanner: overlay.showTestBanner ?? defaults.showTestBanner,
       theme: {
         accent: overlay.theme?.accent ?? null,

@@ -26,30 +26,54 @@ export interface ProductBadges {
   comparePrice?: ProductBadgeComparePrice;
 }
 
-// A "Sale" badge/struck MRP is driven by exactly the comparison Medusa's own
-// Store API supports for a promotional or price-list discount:
-// `calculated_price.original_amount` (the undiscounted/list price) vs.
-// `calculated_price.calculated_amount` (the final price after any active
-// discount) — see `CalculatedPriceResult` in `schemas.ts`. This is the same
-// field pair `ProductVariantPicker.svelte`'s own `comparePrice` already
-// reads; there is no separate "compare_at_price" field on a Medusa variant,
-// so this template never invents one.
+// A "Sale" badge/struck MRP is driven by whichever of two sources shows a
+// real discount, checked in this order:
+//
+// 1. `calculated_price.original_amount` (the undiscounted/list price) vs.
+//    `calculated_price.calculated_amount` (the final price after any active
+//    promotion or price-list discount) — see `CalculatedPriceResult` in
+//    `schemas.ts`. This is the same field pair `ProductVariantPicker.svelte`'s
+//    own `comparePrice` already reads, and is Medusa's own native mechanism
+//    for a real, checkout-affecting discount.
+// 2. `variant.metadata.compare_at_price` — a merchant-set, DISPLAY-ONLY
+//    "was" price (Shopify-style; see `admin-product-variants.ts`'s doc
+//    comment in `web-app/ecomm-ai` for why this is metadata, not a price
+//    list). Only consulted when (1) shows no discount, so a real price-list
+//    promotion is never masked by a stale merchant-set compare-at value.
+//
+// Both sources are kept (never just one): (1) covers any future real
+// promotion/price-list Medusa itself computes; (2) is what `compare_at_price`
+// on `add_product`/`update_product`/`import_products` actually writes today.
 export const compareAtPrice = (
   variant: Variant | undefined | null,
 ): ProductBadgeComparePrice | undefined => {
   const calculated = variant?.calculated_price;
   if (
-    !calculated ||
-    calculated.original_amount === null ||
-    calculated.calculated_amount === null ||
-    calculated.original_amount <= calculated.calculated_amount
+    calculated &&
+    calculated.original_amount !== null &&
+    calculated.calculated_amount !== null &&
+    calculated.original_amount > calculated.calculated_amount
   ) {
-    return undefined;
+    return {
+      amount: calculated.original_amount,
+      currency_code: calculated.currency_code || "inr",
+    };
   }
-  return {
-    amount: calculated.original_amount,
-    currency_code: calculated.currency_code || "inr",
-  };
+
+  const metadataCompareAt = variant?.metadata?.compare_at_price;
+  const currentAmount = calculated?.calculated_amount;
+  if (
+    typeof metadataCompareAt === "number" &&
+    typeof currentAmount === "number" &&
+    metadataCompareAt > currentAmount
+  ) {
+    return {
+      amount: metadataCompareAt,
+      currency_code: calculated?.currency_code || "inr",
+    };
+  }
+
+  return undefined;
 };
 
 // Whether `createdAt` falls within `windowDays` of `now` — a product created

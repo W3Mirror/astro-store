@@ -68,6 +68,45 @@ test("compareAtPrice: the original amount when it's strictly greater than the ca
   assert.deepEqual(price, { amount: 500, currency_code: "inr" });
 });
 
+test("compareAtPrice: falls back to metadata.compare_at_price when calculated_price shows no discount", () => {
+  const price = badges.compareAtPrice(
+    variant({ metadata: { compare_at_price: 799 } }),
+  );
+  assert.deepEqual(price, { amount: 799, currency_code: "inr" });
+});
+
+test("compareAtPrice: ignores metadata.compare_at_price when it isn't actually greater than the current price", () => {
+  assert.equal(
+    badges.compareAtPrice(variant({ metadata: { compare_at_price: 500 } })),
+    undefined,
+  );
+  assert.equal(
+    badges.compareAtPrice(variant({ metadata: { compare_at_price: 400 } })),
+    undefined,
+  );
+});
+
+test("compareAtPrice: prefers a real calculated_price discount over metadata.compare_at_price", () => {
+  const price = badges.compareAtPrice(
+    variant({
+      calculated_price: {
+        calculated_amount: 400,
+        original_amount: 500,
+        currency_code: "inr",
+      },
+      metadata: { compare_at_price: 9999 },
+    }),
+  );
+  assert.deepEqual(price, { amount: 500, currency_code: "inr" });
+});
+
+test("compareAtPrice: ignores a non-numeric metadata.compare_at_price", () => {
+  assert.equal(
+    badges.compareAtPrice(variant({ metadata: { compare_at_price: "799" } })),
+    undefined,
+  );
+});
+
 // --- isRecentlyCreated -------------------------------------------------------
 
 test("isRecentlyCreated: true within the window, false on/after the boundary", () => {

@@ -115,6 +115,10 @@ export const SiteConfigOverlayResult = z.object({
   whatsappNumber: z.string().nullable().optional(),
   sizeChartImageUrl: z.string().nullable().optional(),
   customFitNote: z.string().nullable().optional(),
+  // PDP accordion bodies — "Shipping & COD" / "Returns & Help". Unset hides
+  // that accordion entirely (see `ProductAccordions.astro`).
+  shippingText: z.string().nullable().optional(),
+  returnsText: z.string().nullable().optional(),
   // Hides the "Test store — orders aren't real" notice on the Test build
   // only (see `TestStoreBanner.astro`) — defaults to `true` (shown) when
   // unset. This can never affect a LIVE build: `TestStoreBanner.astro`
@@ -190,14 +194,16 @@ export const VariantResult = z.object({
   manage_inventory: z.boolean().nullable().optional(),
   options: z.array(VariantOptionResult).optional().default([]),
   calculated_price: CalculatedPriceResult.optional(),
-  // Per-variant imagery isn't in the product data model yet — a variant
-  // carries no `images` relation in Medusa. Until that ships, a merchant
-  // can set `metadata.image_url` on a variant (e.g. a Colour variant) and
-  // the storefront picks it up: colour swatches render that image instead
-  // of a plain chip, and the gallery's main image swaps to it when that
-  // variant becomes selected — see `getVariantImageUrl` in
-  // `variant-selection.ts`. Absent metadata is the common case today and
-  // must fall back to today's behavior exactly (text chip, no image swap).
+  // Native per-variant imagery (`ProductVariant.thumbnail`/`.images`,
+  // `@since 2.11.2` in the backend's product module) — colour swatches
+  // render this image instead of a plain chip, and the gallery's main
+  // image swaps to it when that variant becomes selected, see
+  // `getVariantImageUrl` in `variant-selection.ts`. `metadata.image_url` is
+  // kept as a fallback source (a store whose variant images predate this,
+  // or any other non-native write) — absent both, callers fall back to
+  // today's behavior exactly (text chip, no image swap).
+  thumbnail: z.string().nullable().optional(),
+  images: z.array(ImageResult).optional().default([]),
   metadata: z.record(z.string(), z.unknown()).nullable().optional(),
 });
 

@@ -28,6 +28,30 @@ test("SiteConfigOverlayResult accepts whatsappNumber/sizeChartImageUrl/customFit
   );
 });
 
+test("SiteConfigOverlayResult accepts shippingText/returnsText", async () => {
+  const schemas = await read("src/utils/schemas.ts");
+  for (const field of ["shippingText", "returnsText"]) {
+    assert.match(
+      schemas,
+      new RegExp(`${field}:\\s*z\\.string\\(\\)\\.nullable\\(\\)\\.optional\\(\\)`),
+    );
+  }
+});
+
+test("getSiteConfig overlays shippingText/returnsText onto env defaults", async () => {
+  const siteConfig = await read("src/utils/site-config.ts");
+  assert.match(siteConfig, /shippingText: string \| null;/);
+  assert.match(siteConfig, /returnsText: string \| null;/);
+  assert.match(
+    siteConfig,
+    /shippingText: overlay\.shippingText \|\| defaults\.shippingText/,
+  );
+  assert.match(
+    siteConfig,
+    /returnsText: overlay\.returnsText \|\| defaults\.returnsText/,
+  );
+});
+
 test("getSiteConfig overlays the new settings onto env defaults", async () => {
   const siteConfig = await read("src/utils/site-config.ts");
   assert.match(siteConfig, /whatsappNumber: string \| null;/);

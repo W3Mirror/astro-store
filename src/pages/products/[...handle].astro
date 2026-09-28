@@ -97,10 +97,7 @@ setCache.short(Astro, product ? ["product", `product:${product.handle}`] : []);
           </div>
 
           <div class="mt-8 lg:col-span-5 lg:mt-0">
-            <ProductInformations
-              title={product.title}
-              description={product.description}
-            />
+            <ProductInformations title={product.title} />
 
             <div>
               <ProductVariantPicker
@@ -119,7 +116,17 @@ setCache.short(Astro, product ? ["product", `product:${product.handle}`] : []);
             </div>
 
             <div class="mt-8">
-              <ProductAccordions />
+              <ProductAccordions
+                description={product.description}
+                fabricCare={
+                  typeof product.metadata?.fabric_care === "string"
+                    ? product.metadata.fabric_care
+                    : null
+                }
+                shippingText={siteConfig.shippingText}
+                returnsText={siteConfig.returnsText}
+                whatsappNumber={siteConfig.whatsappNumber}
+              />
             </div>
           </div>
         </div>

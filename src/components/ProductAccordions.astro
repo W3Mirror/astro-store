@@ -1,43 +1,98 @@
 ---
+import { isValidWhatsappNumber, whatsappLink } from "../utils/contact";
+
+// PDP accordions — accessible `<details>/<summary>`, one per section, each
+// shown only when it actually has content:
+//   - "Description": the product's own description.
+//   - "Fabric & Care": `product.metadata.fabric_care`, settable via
+//     `update_product`'s typed `fabric_care` field (see
+//     `web-app/ecomm-ai`'s `admin-products.ts`).
+//   - "Shipping & COD": the per-environment `shipping_text` setting.
+//   - "Returns & Help": the per-environment `returns_text` setting, plus a
+//     WhatsApp link when `whatsapp_number` is configured — same
+//     validation/link-building as `WhatsappFloatButton.astro`, since this
+//     template must never trust that upstream overlay data was validated.
+// A section with no underlying data is left out of `accordions` entirely —
+// never rendered as an empty/disabled accordion.
+export interface Props {
+  description?: string | null;
+  fabricCare?: string | null;
+  shippingText?: string | null;
+  returnsText?: string | null;
+  whatsappNumber?: string | null;
+}
+
+const {
+  description = null,
+  fabricCare = null,
+  shippingText = null,
+  returnsText = null,
+  whatsappNumber = null,
+} = Astro.props as Props;
+
+const whatsappHref = isValidWhatsappNumber(whatsappNumber)
+  ? whatsappLink(whatsappNumber)
+  : null;
+
 const accordions = [
-  {
-    title: "Shipping and taxes",
-    content: "Shipping and taxes are calculated at checkout.",
-  },
-];
+  description ? { title: "Description", text: description } : null,
+  fabricCare ? { title: "Fabric & Care", text: fabricCare } : null,
+  shippingText ? { title: "Shipping & COD", text: shippingText } : null,
+  returnsText || whatsappHref
+    ? { title: "Returns & Help", text: returnsText, whatsappHref }
+    : null,
+].filter((accordion): accordion is NonNullable<typeof accordion> =>
+  Boolean(accordion),
+);
 ---
 
-<div class="grid">
-  {
-    accordions.map((accordion, index) => (
-      <details
-        class:list={[
-          "group",
-          "border-t",
-          { "border-b": index === accordions.length - 1 },
-        ]}
-      >
-        <summary class="flex cursor-pointer items-center justify-between px-1 py-3 font-bold text-zinc-700">
-          <span>{accordion.title}</span>
-          <span class="transition group-open:rotate-180" aria-hidden="true">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke-width="1.5"
-              stroke="currentColor"
-              class="h-4 w-4"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="m19.5 8.25-7.5 7.5-7.5-7.5"
-              />
-            </svg>
-          </span>
-        </summary>
-        <div class="p-4 text-sm text-zinc-600">{accordion.content}</div>
-      </details>
-    ))
-  }
-</div>
+{
+  accordions.length > 0 && (
+    <div class="grid">
+      {accordions.map((accordion, index) => (
+        <details
+          class:list={[
+            "group",
+            "border-t",
+            { "border-b": index === accordions.length - 1 },
+          ]}
+        >
+          <summary class="flex cursor-pointer items-center justify-between px-1 py-3 font-bold text-zinc-700">
+            <span>{accordion.title}</span>
+            <span class="transition group-open:rotate-180" aria-hidden="true">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="1.5"
+                stroke="currentColor"
+                class="h-4 w-4"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="m19.5 8.25-7.5 7.5-7.5-7.5"
+                />
+              </svg>
+            </span>
+          </summary>
+          <div class="p-4 text-sm whitespace-pre-line text-zinc-600">
+            {accordion.text}
+            {accordion.whatsappHref && (
+              <p class="mt-2">
+                <a
+                  href={accordion.whatsappHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="font-semibold text-emerald-700 underline underline-offset-2"
+                >
+                  Chat with us on WhatsApp
+                </a>
+              </p>
+            )}
+          </div>
+        </details>
+      ))}
+    </div>
+  )
+}
