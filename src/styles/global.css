@@ -55,6 +55,20 @@
     @apply flex min-h-screen flex-col;
     background: var(--store-canvas);
     color: var(--store-ink);
+    /* `--store-font-body` is only ever set by `BaseLayout.astro`'s inline
+       `:root` override (built from a validated `theme_body_font`) — when
+       unset, `var()`'s fallback keeps today's default (Tailwind's sans
+       stack), unchanged. */
+    font-family: var(--store-font-body, inherit);
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--store-font-heading, inherit);
   }
 
   main {
@@ -79,7 +93,7 @@
     @apply bg-gradient-to-br from-emerald-900 via-emerald-800 to-emerald-600;
     @apply px-8 py-3 text-base font-medium text-white;
     @apply transition hover:opacity-80;
-    @apply focus:ring-2 focus:ring-black focus:ring-offset-1 focus:outline-none;
+    @apply focus:ring-2 focus:ring-offset-1 focus:outline-none focus:ring-[var(--store-highlight)];
     @apply disabled:cursor-not-allowed disabled:opacity-60;
   }
 }
@@ -100,6 +114,7 @@
     --store-muted: #78716c;
     --store-accent: #1c1917;
     --store-accent-contrast: #ffffff;
+    --store-highlight: #064e3b;
     --store-line: #e7e5e4;
     --store-radius: 0.75rem;
     --store-shadow: 0 18px 55px rgb(28 25 23 / 8%);
@@ -115,8 +130,35 @@
     color: var(--store-ink);
   }
 
-  .announcement-bar {
+  /* `announcement_style` variants — `--accent` matches this class's own
+     pre-existing look exactly (today's only/default behavior), so an
+     unconfigured store renders unchanged. */
+  .announcement-bar,
+  .announcement-bar--accent {
     background: var(--store-accent);
+    color: var(--store-accent-contrast);
+  }
+
+  .announcement-bar--highlight {
+    background: var(--store-highlight);
+    color: var(--store-accent-contrast);
+  }
+
+  .announcement-bar--subtle {
+    background: var(--store-surface);
+    color: var(--store-ink);
+    border-bottom: 1px solid var(--store-line);
+  }
+
+  /* A subtle divider tying the footer to `--store-highlight` — new surface, so it only shows once the merchant customises the highlight color (defaults to the same tone `.store-badge` already used). */
+  .store-footer {
+    border-top: 1px solid
+      color-mix(in srgb, var(--store-highlight) 25%, transparent);
+  }
+
+  /* Cart-count badge — the one pre-existing "badge" in this template (`CartIcon.svelte`). */
+  .store-badge {
+    background: var(--store-highlight);
     color: var(--store-accent-contrast);
   }
 

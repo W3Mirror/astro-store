@@ -1,13 +1,19 @@
 ---
 import { getSiteConfig } from "../utils/site-config";
+import { safeAnnouncementStyle } from "../utils/theme";
 
 const siteConfig = await getSiteConfig();
 const message = siteConfig.announcementMessage;
+// Defaults to "accent" — this class's pre-existing (and only) look, so an
+// unconfigured store's announcement bar renders exactly as before.
+const styleClass = `announcement-bar--${safeAnnouncementStyle(siteConfig.theme.announcementStyle)}`;
 ---
 
 {
   message && (
-    <div class="announcement-bar flex items-center justify-center px-4 py-2 text-sm font-bold sm:px-6 lg:px-8">
+    <div
+      class={`announcement-bar ${styleClass} flex items-center justify-center px-4 py-2 text-sm font-bold sm:px-6 lg:px-8`}
+    >
       {message}
     </div>
   )

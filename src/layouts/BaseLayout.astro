@@ -6,6 +6,7 @@ import AnnouncementBar from "../components/AnnouncementBar.astro";
 import TestStoreBanner from "../components/TestStoreBanner.astro";
 import { getSiteConfig } from "../utils/site-config";
 import { config } from "../utils/config";
+import { googleFontsHref, themeStyleBlock } from "../utils/theme";
 
 export interface Props {
   title: string;
@@ -37,6 +38,19 @@ const robots =
     ? "noindex, nofollow"
     : "index, follow";
 const jsonLdItems = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
+
+// Typed THEME settings: a `:root{...}` override block built ONLY from
+// values that re-validate here (`themeStyleBlock` — hex regex, radius
+// bounds, font allowlist), and a Google Fonts stylesheet loading ONLY the
+// selected allowlisted heading/body fonts (never "system", which needs no
+// web font). Both are empty/`null` — rendering nothing extra — when no
+// theme has been set, so an unconfigured store looks exactly as before
+// this feature existed. See `utils/theme.ts`'s module doc.
+const themeStyle = themeStyleBlock(siteConfig.theme);
+const fontHref = googleFontsHref([
+  siteConfig.theme.headingFont,
+  siteConfig.theme.bodyFont,
+]);
 ---
 
 <html lang="en">
@@ -79,6 +93,20 @@ const jsonLdItems = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
     <style is:global>
       @import "../styles/global.css";
     </style>
+    {
+      fontHref && (
+        <>
+          <link rel="preconnect" href="https://fonts.googleapis.com" />
+          <link
+            rel="preconnect"
+            href="https://fonts.gstatic.com"
+            crossorigin
+          />
+          <link rel="stylesheet" href={fontHref} />
+        </>
+      )
+    }
+    {themeStyle && <style set:html={themeStyle} />}
   </head>
   <body>
     <TestStoreBanner />

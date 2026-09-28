@@ -36,7 +36,7 @@
     </svg>
     {#if totalQuantity > 0}
       <div
-        class="absolute -right-2 -top-1 sm:-right-1 sm:top-0 bg-emerald-900 text-white text-[12px] rounded-full"
+        class="store-badge absolute -right-2 -top-1 sm:-right-1 sm:top-0 text-[12px] rounded-full"
       >
         <span class="w-5 h-5 flex justify-center text-center items-center">
           {totalQuantity}

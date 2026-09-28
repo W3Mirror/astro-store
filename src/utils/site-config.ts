@@ -1,5 +1,6 @@
 import { SiteConfigOverlayResult } from "./schemas";
 import { config } from "./config";
+import type { SiteThemeConfig } from "./theme";
 
 // The effective, per-request store configuration: env-based defaults
 // (`config.storeName`, `config.announcementMessage`) overlaid with values
@@ -19,6 +20,10 @@ export interface SiteConfig {
   heroImageUrl: string | null;
   heroImageAlt: string | null;
   aboutImageUrl: string | null;
+  // Typed THEME settings (colors, radius, fonts, header logo height,
+  // announcement style) — see `utils/theme.ts`. Every field is `null` when
+  // unset, meaning "use the template default" (never an empty string).
+  theme: SiteThemeConfig;
   seo: SeoConfig | null;
 }
 
@@ -64,6 +69,21 @@ const envDefaults = (): SiteConfig => ({
   heroImageUrl: null,
   heroImageAlt: null,
   aboutImageUrl: null,
+  theme: {
+    accent: null,
+    accentContrast: null,
+    highlight: null,
+    canvas: null,
+    surface: null,
+    ink: null,
+    muted: null,
+    line: null,
+    radius: null,
+    headingFont: null,
+    bodyFont: null,
+    headerLogoHeight: null,
+    announcementStyle: null,
+  },
   seo: null,
 });
 
@@ -106,6 +126,21 @@ const fetchSiteConfig = async (): Promise<SiteConfig> => {
       heroImageUrl: overlay.heroImageUrl || defaults.heroImageUrl,
       heroImageAlt: overlay.heroImageAlt || defaults.heroImageAlt,
       aboutImageUrl: overlay.aboutImageUrl || defaults.aboutImageUrl,
+      theme: {
+        accent: overlay.theme?.accent ?? null,
+        accentContrast: overlay.theme?.accentContrast ?? null,
+        highlight: overlay.theme?.highlight ?? null,
+        canvas: overlay.theme?.canvas ?? null,
+        surface: overlay.theme?.surface ?? null,
+        ink: overlay.theme?.ink ?? null,
+        muted: overlay.theme?.muted ?? null,
+        line: overlay.theme?.line ?? null,
+        radius: overlay.theme?.radius ?? null,
+        headingFont: overlay.theme?.headingFont ?? null,
+        bodyFont: overlay.theme?.bodyFont ?? null,
+        headerLogoHeight: overlay.theme?.headerLogoHeight ?? null,
+        announcementStyle: overlay.theme?.announcementStyle ?? null,
+      },
       seo:
         overlay.seo?.reviewStatus === "approved"
           ? {

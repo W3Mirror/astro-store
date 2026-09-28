@@ -28,6 +28,68 @@ export const configSchema = z.object({
   ),
 });
 
+// Typed THEME settings (see `utils/theme.ts`'s module doc). Every color is a
+// strict `#RRGGBB` hex string — this is re-validation #2 of 3 (backend
+// write-side, this parse, and `utils/theme.ts`'s re-check right before a
+// value is interpolated into CSS/a Google Fonts URL in `BaseLayout.astro`).
+// An out-of-contract value here fails this whole parse (falls back to env
+// defaults, same as any other malformed overlay field), not a partial
+// theme — see `fetchSiteConfig`'s try/catch in `site-config.ts`.
+const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
+const RADIUS_RE = /^(\d+(?:\.\d+)?)(rem|px)$/;
+const THEME_RADIUS_MAX_REM = 2;
+const THEME_RADIUS_MAX_PX = 32;
+
+function isValidThemeRadius(value: string): boolean {
+  const match = RADIUS_RE.exec(value.trim());
+  if (!match) return false;
+  const amount = Number(match[1]);
+  const unit = match[2];
+  if (!Number.isFinite(amount) || amount < 0) return false;
+  return unit === "rem"
+    ? amount <= THEME_RADIUS_MAX_REM
+    : amount <= THEME_RADIUS_MAX_PX;
+}
+
+const ThemeHexColor = z.string().regex(HEX_COLOR_RE);
+const ThemeRadiusValue = z.string().refine(isValidThemeRadius);
+const ThemeFontValue = z.enum([
+  "system",
+  "Inter",
+  "Poppins",
+  "Lato",
+  "Playfair Display",
+  "Lora",
+  "Montserrat",
+  "DM Sans",
+  "EB Garamond",
+  "Libre Baskerville",
+  "Nunito",
+  "Work Sans",
+  "Merriweather",
+  "Raleway",
+  "Cormorant Garamond",
+]);
+
+export const ThemeOverlayResult = z.object({
+  accent: ThemeHexColor.nullable().optional(),
+  accentContrast: ThemeHexColor.nullable().optional(),
+  highlight: ThemeHexColor.nullable().optional(),
+  canvas: ThemeHexColor.nullable().optional(),
+  surface: ThemeHexColor.nullable().optional(),
+  ink: ThemeHexColor.nullable().optional(),
+  muted: ThemeHexColor.nullable().optional(),
+  line: ThemeHexColor.nullable().optional(),
+  radius: ThemeRadiusValue.nullable().optional(),
+  headingFont: ThemeFontValue.nullable().optional(),
+  bodyFont: ThemeFontValue.nullable().optional(),
+  headerLogoHeight: z.enum(["sm", "md", "lg"]).nullable().optional(),
+  announcementStyle: z
+    .enum(["highlight", "accent", "subtle"])
+    .nullable()
+    .optional(),
+});
+
 // Shape of the JSON served by the public per-project site-config endpoint.
 // Every field is optional/nullable — the overlay only applies fields that
 // come back as non-empty strings, falling back to the env-based `config`
@@ -45,6 +107,7 @@ export const SiteConfigOverlayResult = z.object({
   heroImageUrl: z.string().nullable().optional(),
   heroImageAlt: z.string().nullable().optional(),
   aboutImageUrl: z.string().nullable().optional(),
+  theme: ThemeOverlayResult.nullable().optional(),
   seo: z
     .object({
       profile: z.object({
