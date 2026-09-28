@@ -222,3 +222,83 @@ export const computeForcedOptions = (
 
   return forced;
 };
+
+// --- Pill/radiogroup picker rules -------------------------------------------
+//
+// Every option picker (Size, Fabric, Type, Colour, ...) renders as a row of
+// pill buttons with `role="radiogroup"` semantics — a plain `<select>` is
+// only a fallback for an unusually large value set. These are the pure,
+// UI-framework-free rules the picker (`ProductVariantPicker.svelte`) is
+// built from, kept here so they're testable without loading Svelte.
+
+// A picker with more than this many *visible* values (see
+// `visibleOptionValues`) falls back to a plain `<select>` — a wall of
+// buttons stops being usable well before this, but a select stays fine.
+export const OPTION_PICKER_SELECT_THRESHOLD = 12;
+
+// Rule: given the shopper's other current picks, a value with NO existing
+// variant is omitted from the picker entirely — never rendered, not even
+// disabled (e.g. "Free Size" has no meaning once "Stitched" is picked, so it
+// shouldn't appear under Stitched at all). A value that DOES exist but is
+// out of stock stays visible, rendered disabled with "sold out" styling —
+// see `isSelectableOptionValue`/the component's disabled state, matching the
+// reference site's "sold-out sizes render disabled (not hidden)" rule.
+export const visibleOptionValues = (
+  values: OptionValueState[],
+): OptionValueState[] => values.filter((value) => value.exists);
+
+// Whether a picker with this many *visible* values should render as a plain
+// `<select>` instead of a row of pill buttons.
+export const usesSelectFallback = (
+  visibleValues: OptionValueState[],
+): boolean => visibleValues.length > OPTION_PICKER_SELECT_THRESHOLD;
+
+// A value is reachable by click/keyboard as a live choice only once it
+// exists AND is in stock — an existing-but-sold-out value is shown (per
+// `visibleOptionValues`) but rendered `disabled`, exactly like a native
+// radiogroup's disabled radio: visible, not interactive, skipped by arrow
+// key navigation.
+export const isSelectableOptionValue = (value: OptionValueState): boolean =>
+  value.inStock;
+
+// Roving-tabindex keyboard navigation for the pill radiogroup: given the
+// values currently visible (`visibleOptionValues`) and the value the
+// shopper is presently on, returns the value an ArrowLeft/Up (`direction:
+// -1`) or ArrowRight/Down (`direction: 1`) press should move the selection
+// (and focus) to. Only in-stock values are reachable this way — a disabled,
+// sold-out pill is skipped, mirroring how a browser skips a disabled radio
+// in a native radiogroup. Wraps at either end. `undefined` when nothing in
+// the group is reachable at all (every visible value is sold out).
+export const nextSelectableOptionValue = (
+  values: OptionValueState[],
+  currentValue: string | undefined,
+  direction: 1 | -1,
+): string | undefined => {
+  const selectable = values.filter(isSelectableOptionValue);
+  if (selectable.length === 0) return undefined;
+
+  const currentIndex = selectable.findIndex(
+    (value) => value.value === currentValue,
+  );
+  const nextIndex =
+    currentIndex === -1
+      ? direction > 0
+        ? 0
+        : selectable.length - 1
+      : (currentIndex + direction + selectable.length) % selectable.length;
+
+  return selectable[nextIndex].value;
+};
+
+// Which value should be the group's one roving tab stop (`tabindex="0"`,
+// every other value `tabindex="-1"`) — the selected value when there is one
+// within the visible set, otherwise the first visible value, exactly
+// matching a native radiogroup's default tab stop.
+export const isRovingTabStop = (
+  value: OptionValueState,
+  values: OptionValueState[],
+): boolean => {
+  if (value.selected) return true;
+  if (values.some((candidate) => candidate.selected)) return false;
+  return values[0]?.value === value.value;
+};

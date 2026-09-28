@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from "svelte";
   import type { z } from "zod";
   import type { ProductResult } from "../utils/schemas";
   import {
@@ -8,13 +9,19 @@
     getVariantAvailability,
     getVariantImageUrl,
     isColourOptionTitle,
+    isRovingTabStop,
     isSizeOptionTitle,
+    nextSelectableOptionValue,
     resolveInitialVariant,
     selectionFromVariant,
     needsVariantPicker,
+    usesSelectFallback,
+    visibleOptionValues,
+    type OptionValueState,
     type VariantSelection,
   } from "../utils/variant-selection";
   import { toMoney } from "../utils/medusa";
+  import { addCartItem, isCartUpdating } from "../stores/cart";
   import Money from "./Money.svelte";
   import AddToCartForm from "./AddToCartForm.svelte";
 
@@ -28,6 +35,10 @@
     // note renders under the pickers without one.
     sizeChartImageUrl?: string | null;
     customFitNote?: string | null;
+    // Used only by the mobile sticky "Add to bag" bar (rule 8) — the same
+    // thumbnail/title the rest of the page already shows.
+    productImageUrl?: string | null;
+    productTitle?: string;
   }
 
   let {
@@ -35,6 +46,8 @@
     initialVariantId,
     sizeChartImageUrl = null,
     customFitNote = null,
+    productImageUrl = null,
+    productTitle = "",
   }: Props = $props();
 
   const showPicker = needsVariantPicker(product);
@@ -99,11 +112,10 @@
     if (changed) selection = next;
   });
 
-  function valueButtonClass(optionValue: {
-    exists: boolean;
-    inStock: boolean;
-    selected: boolean;
-  }) {
+  // Every value reaching these two functions has already passed through
+  // `visibleOptionValues` (exists === true) — only in-stock/selected state
+  // is left to render.
+  function valueButtonClass(optionValue: { inStock: boolean; selected: boolean }) {
     const classes = [
       "rounded-md border px-4 py-2 text-sm font-medium transition",
     ];
@@ -114,31 +126,106 @@
         "border-zinc-300 bg-white text-zinc-900 hover:border-emerald-900",
       );
     }
-    if (!optionValue.exists) {
-      classes.push("cursor-not-allowed opacity-40");
-    } else if (!optionValue.inStock && !optionValue.selected) {
-      classes.push("text-zinc-400 line-through");
+    if (!optionValue.inStock) {
+      classes.push("cursor-not-allowed text-zinc-400 line-through opacity-60");
     }
     return classes.join(" ");
   }
 
-  function swatchButtonClass(optionValue: {
-    exists: boolean;
-    inStock: boolean;
-    selected: boolean;
-  }) {
+  function swatchButtonClass(optionValue: { inStock: boolean; selected: boolean }) {
     const classes = [
       "relative h-10 w-10 overflow-hidden rounded-full border-2 bg-cover bg-center transition",
     ];
     classes.push(
       optionValue.selected ? "border-emerald-900" : "border-zinc-300",
     );
-    if (!optionValue.exists) {
-      classes.push("cursor-not-allowed opacity-40");
-    } else if (!optionValue.inStock && !optionValue.selected) {
-      classes.push("opacity-50");
+    if (!optionValue.inStock) {
+      classes.push("cursor-not-allowed opacity-50");
     }
     return classes.join(" ");
+  }
+
+  // --- Radiogroup keyboard navigation (Rule 2: "keyboard arrows") ----------
+  //
+  // One ref per rendered pill, keyed by `${groupId}::${value}`, so an arrow
+  // press can move DOM focus to the newly-selected pill after Svelte
+  // re-renders (`tick()`), matching native radiogroup behaviour.
+  let buttonRefs: Record<string, HTMLButtonElement> = {};
+  const buttonRefKey = (groupId: string, value: string) => `${groupId}::${value}`;
+
+  async function moveSelection(
+    groupId: string,
+    values: OptionValueState[],
+    direction: 1 | -1,
+  ) {
+    const currentValue = selection[groupId];
+    const next = nextSelectableOptionValue(values, currentValue, direction);
+    if (!next) return;
+    selectValue(groupId, next);
+    await tick();
+    buttonRefs[buttonRefKey(groupId, next)]?.focus();
+  }
+
+  function handlePickerKeydown(
+    event: KeyboardEvent,
+    groupId: string,
+    values: OptionValueState[],
+  ) {
+    switch (event.key) {
+      case "ArrowRight":
+      case "ArrowDown":
+        event.preventDefault();
+        void moveSelection(groupId, values, 1);
+        break;
+      case "ArrowLeft":
+      case "ArrowUp":
+        event.preventDefault();
+        void moveSelection(groupId, values, -1);
+        break;
+      default:
+        break;
+    }
+  }
+
+  // --- Sticky mobile "Add to bag" bar (Rule 4) ------------------------------
+  //
+  // Appears once the primary add-to-cart button scrolls out of view.
+  // `atcAnchorEl` wraps that button; an IntersectionObserver on it is the
+  // simplest scroll-position signal with no scroll-event listener needed.
+  let atcAnchorEl: HTMLDivElement | undefined = $state();
+  let stickyAtcVisible = $state(false);
+  let stickyAddError = $state("");
+
+  $effect(() => {
+    if (typeof window === "undefined" || !atcAnchorEl) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        stickyAtcVisible = !entry.isIntersecting;
+      },
+      { threshold: 0 },
+    );
+    observer.observe(atcAnchorEl);
+    return () => observer.disconnect();
+  });
+
+  // Lets the sitewide floating WhatsApp button (a separate Astro island — no
+  // shared store) shift itself above this bar on mobile instead of being
+  // covered by it, the same cross-island bridge `pdp:variant-image` uses.
+  $effect(() => {
+    if (typeof window === "undefined") return;
+    window.dispatchEvent(
+      new CustomEvent("pdp:sticky-atc", { detail: { visible: stickyAtcVisible } }),
+    );
+  });
+
+  async function addSelectedVariantToCart() {
+    if (!selectedVariant || !availability.availableForSale) return;
+    stickyAddError = "";
+    try {
+      await addCartItem({ id: selectedVariant.id, quantity: 1 });
+    } catch (caught) {
+      stickyAddError = caught instanceof Error ? caught.message : String(caught);
+    }
   }
 
   // Keep `?variant=<id>` in sync with the current selection so the page can
@@ -203,6 +290,7 @@
     {#each visibleOptionGroups as group (group.id)}
       {@const colourAxis = isColourOptionTitle(group.title)}
       {@const sizeAxis = isSizeOptionTitle(group.title)}
+      {@const visible = visibleOptionValues(group.values)}
       <fieldset>
         <legend class="flex items-center gap-3 text-sm font-medium text-zinc-700">
           {group.title}
@@ -216,7 +304,7 @@
             </button>
           {/if}
         </legend>
-        {#if group.values.length > 6}
+        {#if usesSelectFallback(visible)}
           <select
             class="account-input"
             aria-label={group.title}
@@ -224,33 +312,51 @@
             onchange={(event) =>
               selectValue(group.id, (event.currentTarget as HTMLSelectElement).value)}
           >
-            {#each group.values as optionValue (optionValue.value)}
-              <option value={optionValue.value} disabled={!optionValue.exists}>
-                {optionValue.value}{optionValue.exists && !optionValue.inStock
-                  ? " (sold out)"
-                  : ""}
+            {#each visible as optionValue (optionValue.value)}
+              <option value={optionValue.value} disabled={!optionValue.inStock}>
+                {optionValue.value}{!optionValue.inStock ? " (sold out)" : ""}
               </option>
             {/each}
           </select>
         {:else}
-          <div class="mt-2 flex flex-wrap gap-2" role="group" aria-label={group.title}>
-            {#each group.values as optionValue (optionValue.value)}
+          <!-- Rule 2: pill buttons with radiogroup semantics — role/
+               aria-checked/roving tabindex plus Left/Right/Up/Down arrow-key
+               navigation (see `handlePickerKeydown`), for every option, not
+               just Size. A value with no existing variant for the rest of
+               the current selection is never rendered here at all (see
+               `visibleOptionValues`); an existing-but-sold-out value stays
+               visible, disabled, labelled "(sold out)". -->
+          <div
+            class="mt-2 flex flex-wrap gap-2"
+            role="radiogroup"
+            tabindex="-1"
+            aria-label={group.title}
+            onkeydown={(event) => handlePickerKeydown(event, group.id, visible)}
+          >
+            {#each visible as optionValue (optionValue.value)}
               {#if colourAxis && optionValue.imageUrl}
                 <button
                   type="button"
+                  role="radio"
                   class={swatchButtonClass(optionValue)}
                   style={`background-image: url('${optionValue.imageUrl}')`}
-                  aria-pressed={optionValue.selected}
-                  aria-label={`${optionValue.value}${optionValue.exists && !optionValue.inStock ? " (sold out)" : ""}`}
-                  disabled={!optionValue.exists}
+                  aria-checked={optionValue.selected}
+                  aria-label={`${optionValue.value}${!optionValue.inStock ? " (sold out)" : ""}`}
+                  tabindex={isRovingTabStop(optionValue, visible) ? 0 : -1}
+                  disabled={!optionValue.inStock}
+                  bind:this={buttonRefs[buttonRefKey(group.id, optionValue.value)]}
                   onclick={() => selectValue(group.id, optionValue.value)}
                 ></button>
               {:else}
                 <button
                   type="button"
+                  role="radio"
                   class={valueButtonClass(optionValue)}
-                  aria-pressed={optionValue.selected}
-                  disabled={!optionValue.exists}
+                  aria-checked={optionValue.selected}
+                  aria-label={`${optionValue.value}${!optionValue.inStock ? " (sold out)" : ""}`}
+                  tabindex={isRovingTabStop(optionValue, visible) ? 0 : -1}
+                  disabled={!optionValue.inStock}
+                  bind:this={buttonRefs[buttonRefKey(group.id, optionValue.value)]}
                   onclick={() => selectValue(group.id, optionValue.value)}
                 >
                   {optionValue.value}
@@ -296,8 +402,58 @@
   </dialog>
 {/if}
 
-<AddToCartForm
-  variantId={selectedVariant?.id ?? ""}
-  variantQuantityAvailable={availability.quantityAvailable}
-  variantAvailableForSale={Boolean(selectedVariant) && availability.availableForSale}
-/>
+<div bind:this={atcAnchorEl}>
+  <AddToCartForm
+    variantId={selectedVariant?.id ?? ""}
+    variantQuantityAvailable={availability.quantityAvailable}
+    variantAvailableForSale={Boolean(selectedVariant) && availability.availableForSale}
+  />
+</div>
+
+<!-- Rule 4: sticky mobile "Add to bag" bar — appears once the button above
+     scrolls out of view (see the IntersectionObserver effect), mirrors the
+     selected variant's price, and is disabled/labelled per its
+     sold-out/no-selection state. `inert` while hidden keeps it out of the
+     tab order and off-screen for reduced-motion/no-JS the same way. -->
+<div
+  class="pdp-sticky-atc md:hidden"
+  class:pdp-sticky-atc--visible={stickyAtcVisible}
+  inert={!stickyAtcVisible}
+  aria-hidden={!stickyAtcVisible}
+>
+  <div class="pdp-sticky-atc__info">
+    {#if productImageUrl}
+      <img src={productImageUrl} alt="" class="pdp-sticky-atc__thumb" />
+    {/if}
+    <div class="pdp-sticky-atc__text">
+      {#if productTitle}
+        <p class="pdp-sticky-atc__title">{productTitle}</p>
+      {/if}
+      <p class="pdp-sticky-atc__price">
+        <Money price={price} />
+        {#if comparePrice}
+          <span class="pdp-sticky-atc__compare"><Money price={comparePrice} /></span>
+        {/if}
+      </p>
+    </div>
+  </div>
+  <button
+    type="button"
+    class="button pdp-sticky-atc__button"
+    disabled={$isCartUpdating || !selectedVariant || !availability.availableForSale}
+    onclick={addSelectedVariantToCart}
+  >
+    {#if !selectedVariant}
+      Select options
+    {:else if !availability.availableForSale}
+      Sold out
+    {:else if $isCartUpdating}
+      Adding…
+    {:else}
+      Add to bag
+    {/if}
+  </button>
+</div>
+{#if stickyAddError}
+  <p class="pdp-sticky-atc__error" role="alert">{stickyAddError}</p>
+{/if}

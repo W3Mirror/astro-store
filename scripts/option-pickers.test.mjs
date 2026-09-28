@@ -159,3 +159,74 @@ test("buildOptionGroups exposes imageUrl per value from the candidate variant's 
   assert.equal(red.imageUrl, "https://x/red.jpg");
   assert.equal(blue.imageUrl, undefined);
 });
+
+// --- Radiogroup picker rules (rule 2: pill buttons for every option, a
+// select only as a fallback for a large value set) -------------------------
+
+const optionValue = (value, overrides = {}) => ({
+  value,
+  exists: true,
+  inStock: true,
+  selected: false,
+  ...overrides,
+});
+
+test("visibleOptionValues omits values with no existing variant, keeps out-of-stock ones", () => {
+  const values = [
+    optionValue("Free Size", { exists: false }),
+    optionValue("S", { inStock: false }),
+    optionValue("M"),
+  ];
+  const visible = vs.visibleOptionValues(values);
+  assert.deepEqual(
+    visible.map((v) => v.value),
+    ["S", "M"],
+  );
+});
+
+test("usesSelectFallback is false at/under the threshold, true above it", () => {
+  const values = (count) =>
+    Array.from({ length: count }, (_, i) => optionValue(`v${i}`));
+  assert.equal(vs.usesSelectFallback(values(12)), false);
+  assert.equal(vs.usesSelectFallback(values(13)), true);
+  assert.equal(vs.OPTION_PICKER_SELECT_THRESHOLD, 12);
+});
+
+test("nextSelectableOptionValue wraps in both directions and skips sold-out values", () => {
+  const values = [
+    optionValue("XS"),
+    optionValue("S", { inStock: false }),
+    optionValue("M", { selected: true }),
+    optionValue("L"),
+  ];
+  // Forward from M skips the sold-out S only when wrapping past it — from M,
+  // next is L; from L, wrapping forward skips sold-out S and lands on XS.
+  assert.equal(vs.nextSelectableOptionValue(values, "M", 1), "L");
+  assert.equal(vs.nextSelectableOptionValue(values, "L", 1), "XS");
+  // Backward from M skips the sold-out S and lands on XS.
+  assert.equal(vs.nextSelectableOptionValue(values, "M", -1), "XS");
+});
+
+test("nextSelectableOptionValue returns undefined when every value is sold out", () => {
+  const values = [optionValue("S", { inStock: false }), optionValue("M", { inStock: false })];
+  assert.equal(vs.nextSelectableOptionValue(values, "S", 1), undefined);
+});
+
+test("nextSelectableOptionValue starts from the first/last selectable value when nothing is currently selected", () => {
+  const values = [optionValue("S"), optionValue("M"), optionValue("L")];
+  assert.equal(vs.nextSelectableOptionValue(values, undefined, 1), "S");
+  assert.equal(vs.nextSelectableOptionValue(values, undefined, -1), "L");
+});
+
+test("isRovingTabStop: the selected value is always the tab stop", () => {
+  const values = [optionValue("S"), optionValue("M", { selected: true }), optionValue("L")];
+  assert.equal(vs.isRovingTabStop(values[0], values), false);
+  assert.equal(vs.isRovingTabStop(values[1], values), true);
+  assert.equal(vs.isRovingTabStop(values[2], values), false);
+});
+
+test("isRovingTabStop: falls back to the first value when nothing in the set is selected", () => {
+  const values = [optionValue("S"), optionValue("M"), optionValue("L")];
+  assert.equal(vs.isRovingTabStop(values[0], values), true);
+  assert.equal(vs.isRovingTabStop(values[1], values), false);
+});

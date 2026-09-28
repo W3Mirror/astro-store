@@ -109,6 +109,8 @@ setCache.short(Astro, product ? ["product", `product:${product.handle}`] : []);
                 initialVariantId={initialVariant?.id}
                 sizeChartImageUrl={siteConfig.sizeChartImageUrl}
                 customFitNote={siteConfig.customFitNote}
+                productImageUrl={product.thumbnail || product.images[0]?.url || null}
+                productTitle={product.title}
               />
               <WishlistControl
                 productId={product.id}

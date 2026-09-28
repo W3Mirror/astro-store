@@ -273,6 +273,100 @@
     color: var(--store-ink);
   }
 
+  /* Item 4: the PDP's sticky mobile "Add to bag" bar
+     (`ProductVariantPicker.svelte`) — plain global CSS rather than a Svelte
+     `<style>` block, matching every other island in this template (none of
+     them carry component-scoped styles; shared chrome lives here). */
+  .pdp-sticky-atc {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    background: var(--store-canvas);
+    border-top: 1px solid var(--store-line);
+    box-shadow: 0 -8px 24px rgb(28 25 23 / 12%);
+    transform: translateY(100%);
+    transition: transform 200ms ease;
+  }
+
+  .pdp-sticky-atc--visible {
+    transform: translateY(0);
+  }
+
+  .pdp-sticky-atc__info {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    align-items: center;
+    gap: 0.6rem;
+  }
+
+  .pdp-sticky-atc__thumb {
+    height: 2.75rem;
+    width: 2.75rem;
+    flex-shrink: 0;
+    border-radius: var(--store-radius);
+    object-fit: cover;
+  }
+
+  .pdp-sticky-atc__text {
+    min-width: 0;
+  }
+
+  .pdp-sticky-atc__title {
+    overflow: hidden;
+    max-width: 12rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--store-ink);
+  }
+
+  .pdp-sticky-atc__price {
+    display: flex;
+    align-items: baseline;
+    gap: 0.4rem;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--store-ink);
+  }
+
+  .pdp-sticky-atc__compare {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--store-muted);
+    text-decoration: line-through;
+  }
+
+  .pdp-sticky-atc__button {
+    flex-shrink: 0;
+    width: auto;
+    padding-inline: 1.5rem;
+  }
+
+  .pdp-sticky-atc__error {
+    position: fixed;
+    right: 1rem;
+    bottom: 5rem;
+    left: 1rem;
+    z-index: 30;
+    color: #b91c1c;
+    font-size: 0.8rem;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pdp-sticky-atc {
+      transition: none;
+    }
+  }
+
   @media (width < 48rem) {
     .store-hero,
     .store-hero__inner {
