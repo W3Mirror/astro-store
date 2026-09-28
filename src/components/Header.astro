@@ -102,6 +102,31 @@ const whatsappHref = isValidWhatsappNumber(siteConfig.whatsappNumber)
       </div>
       <div></div>
       <div class="flex items-center gap-4 justify-self-end">
+        <button
+          type="button"
+          class="flex h-10 w-10 items-center justify-center rounded-lg"
+          data-open-dialog="search-dialog"
+          aria-controls="search-dialog"
+          aria-haspopup="dialog"
+          aria-expanded="false"
+        >
+          <span class="sr-only">Search products</span>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke-width="1.5"
+            stroke="currentColor"
+            class="h-5 w-5"
+            aria-hidden="true"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"
+            />
+          </svg>
+        </button>
         <a
           class="text-sm font-semibold"
           href={signedIn ? "/account" : "/account/login"}
@@ -137,6 +162,43 @@ const whatsappHref = isValidWhatsappNumber(siteConfig.whatsappNumber)
   </div>
 </header>
 
+<dialog id="search-dialog" class="search-dialog" aria-label="Search products">
+  <div class="nav-drawer__header">
+    <span class="text-lg font-semibold">Search</span>
+    <button
+      type="button"
+      class="-mr-2 flex h-10 w-10 items-center justify-center rounded-lg"
+      data-close-dialog
+    >
+      <span class="sr-only">Close search</span>
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke-width="1.5"
+        stroke="currentColor"
+        class="h-6 w-6"
+        aria-hidden="true"
+      >
+        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+      </svg>
+    </button>
+  </div>
+  <form method="get" action="/products" class="search-dialog__form">
+    <label class="sr-only" for="site-search-input">Search products</label>
+    <input
+      id="site-search-input"
+      type="search"
+      name="q"
+      autocomplete="off"
+      autofocus
+      placeholder="Search products"
+      class="account-input"
+    />
+    <button type="submit" class="button">Search</button>
+  </form>
+</dialog>
+
 <dialog id="nav-drawer" class="nav-drawer" aria-label="Site navigation">
   <div class="nav-drawer__header">
     <span class="text-lg font-semibold">Menu</span>
@@ -160,6 +222,17 @@ const whatsappHref = isValidWhatsappNumber(siteConfig.whatsappNumber)
     </button>
   </div>
   <nav aria-label="Site navigation" class="nav-drawer__body">
+    <form method="get" action="/products" class="nav-drawer__search">
+      <label class="sr-only" for="nav-drawer-search-input">Search products</label>
+      <input
+        id="nav-drawer-search-input"
+        type="search"
+        name="q"
+        autocomplete="off"
+        placeholder="Search products"
+        class="account-input"
+      />
+    </form>
     <ul class="flex flex-col gap-1 text-base font-medium">
       <li>
         <a class="nav-drawer__link" href="/products">Shop all</a>
@@ -238,6 +311,37 @@ const whatsappHref = isValidWhatsappNumber(siteConfig.whatsappNumber)
     border-bottom: 1px solid var(--store-line, #e7e5e4);
   }
 
+  .nav-drawer__search {
+    margin-bottom: 1rem;
+  }
+
+  .search-dialog {
+    position: fixed;
+    inset: 0 0 auto 0;
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    border: 0;
+    padding: 0;
+    background: var(--store-canvas, #fff);
+    color: var(--store-ink, #1c1917);
+  }
+
+  .search-dialog::backdrop {
+    background: rgb(0 0 0 / 45%);
+  }
+
+  .search-dialog__form {
+    display: flex;
+    gap: 0.75rem;
+    padding: 1rem 1.25rem 1.5rem;
+  }
+
+  .search-dialog__form .account-input {
+    margin-top: 0;
+    flex: 1;
+  }
+
   @media (prefers-reduced-motion: no-preference) {
     .nav-drawer {
       transition:
@@ -254,6 +358,24 @@ const whatsappHref = isValidWhatsappNumber(siteConfig.whatsappNumber)
     @starting-style {
       .nav-drawer[open] {
         transform: translateX(-100%);
+      }
+    }
+
+    .search-dialog {
+      transition:
+        transform 0.2s ease,
+        overlay 0.2s ease allow-discrete,
+        display 0.2s ease allow-discrete;
+      transform: translateY(-100%);
+    }
+
+    .search-dialog[open] {
+      transform: translateY(0);
+    }
+
+    @starting-style {
+      .search-dialog[open] {
+        transform: translateY(-100%);
       }
     }
   }
