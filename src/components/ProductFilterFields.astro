@@ -1,8 +1,10 @@
 ---
-import type {
-  OptionFacet,
-  PriceBounds,
-  ProductFacetFilters,
+import {
+  matchesCollectionToken,
+  type CollectionFacetOption,
+  type OptionFacet,
+  type PriceBounds,
+  type ProductFacetFilters,
 } from "../utils/product-filters";
 
 export interface Props {
@@ -16,7 +18,7 @@ export interface Props {
   availability: { inStock: number; total: number };
   price?: PriceBounds;
   options: OptionFacet[];
-  collections?: { id: string; name: string }[];
+  collections?: CollectionFacetOption[];
   // Opaque legacy `collection_id`/`category_id` deep-link params — see
   // `buildListingHref`'s doc comment. Round-tripped as hidden inputs, never
   // rendered as a visible label/control.
@@ -101,8 +103,10 @@ const {
             <input
               type="checkbox"
               name="collections"
-              value={collection.id}
-              checked={filters.collectionIds.includes(collection.id)}
+              value={collection.handle}
+              checked={filters.collectionIds.some((token) =>
+                matchesCollectionToken(collection, token),
+              )}
             />
             <span>{collection.name}</span>
           </label>

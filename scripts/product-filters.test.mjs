@@ -317,6 +317,47 @@ test("buildListingHref omits the default order and a zero offset", () => {
   assert.equal(url.searchParams.has("offset"), false);
 });
 
+// --- Handle-based collection facet resolution (item 3: `?collections=`
+// must accept a shareable collection HANDLE, not just the raw backend id) --
+
+const collectionOptions = [
+  { id: "cat_1", name: "Kurtas", handle: "kurtas", rawHandle: "kurtas-a1b2" },
+  { id: "cat_2", name: "Sarees", handle: "sarees", rawHandle: "sarees-c3d4" },
+];
+
+test("matchesCollectionToken matches a token against handle, raw handle, or id", () => {
+  const kurtas = collectionOptions[0];
+  assert.equal(filters.matchesCollectionToken(kurtas, "kurtas"), true);
+  assert.equal(filters.matchesCollectionToken(kurtas, "kurtas-a1b2"), true);
+  assert.equal(filters.matchesCollectionToken(kurtas, "cat_1"), true);
+  assert.equal(filters.matchesCollectionToken(kurtas, "sarees"), false);
+});
+
+test("resolveCollectionFacetIds resolves clean handles, legacy raw handles, and raw ids to canonical ids", () => {
+  assert.deepEqual(
+    filters.resolveCollectionFacetIds(["kurtas"], collectionOptions),
+    ["cat_1"],
+  );
+  assert.deepEqual(
+    filters.resolveCollectionFacetIds(["sarees-c3d4"], collectionOptions),
+    ["cat_2"],
+  );
+  assert.deepEqual(
+    filters.resolveCollectionFacetIds(["cat_1"], collectionOptions),
+    ["cat_1"],
+  );
+});
+
+test("resolveCollectionFacetIds silently drops a token that matches no known collection", () => {
+  assert.deepEqual(
+    filters.resolveCollectionFacetIds(
+      ["kurtas", "not-a-real-collection"],
+      collectionOptions,
+    ),
+    ["cat_1"],
+  );
+});
+
 test("pagination composes correctly over a filtered, exact (non-estimated) count", () => {
   const filtered = filters.applyProductFacetFilters(pool, {
     inStockOnly: true,

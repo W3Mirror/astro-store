@@ -11,6 +11,7 @@ import {
   FILTER_FETCH_CAP,
   isClientSideSort,
   parseProductFacetFilters,
+  resolveCollectionFacetIds,
   sortProducts,
 } from "../../utils/product-filters";
 import BaseLayout from "../../layouts/BaseLayout.astro";
@@ -29,6 +30,27 @@ const facetFilters = parseProductFacetFilters(params);
 // with, the shopper-facing "Collection" facet below.
 const stickyParams = { collection_id: collectionId, category_id: categoryId };
 
+// Fetched first: the "Collection" facet's `?collections=` URL param carries
+// clean, shareable HANDLES (or, for backward compatibility, a legacy raw
+// handle or raw backend id — see `resolveCollectionFacetIds`'s doc comment),
+// but the Store API's `category_id` filter needs the real id. This is the
+// same request `getCollectionByHandle` already makes elsewhere, so
+// resolving up front costs nothing beyond the one call this facet sidebar
+// needed anyway.
+const collections = await getCollections({ limit: COLLECTIONS_MAX_LIMIT })
+  .then((page) =>
+    page.product_categories
+      .filter((c) => c !== null)
+      .map((c) => ({ id: c.id, name: c.name, handle: c.handle, rawHandle: c.rawHandle })),
+  )
+  .catch((error) => {
+    console.error(
+      "[products] Failed to load the collection list for the filter facet; showing none.",
+      error,
+    );
+    return [];
+  });
+
 // The whole listing (grid + facet sidebar) is served from one bounded pool
 // of candidate products — see `product-filters.ts`'s module doc for why
 // (Availability/Price/option-value facets can't be expressed as Store API
@@ -37,9 +59,13 @@ const stickyParams = { collection_id: collectionId, category_id: categoryId };
 // server-sorted). The "Collection" facet IS a real Store API param, so it's
 // applied here, server-side, before the pool is even fetched, alongside any
 // legacy `?category_id=` deep link.
+const resolvedCollectionIds = resolveCollectionFacetIds(
+  facetFilters.collectionIds,
+  collections,
+);
 const scopedCategoryIds = [
   ...(categoryId ? [categoryId] : []),
-  ...facetFilters.collectionIds,
+  ...resolvedCollectionIds,
 ];
 const pool = await getProductPage({
   limit: FILTER_FETCH_CAP,
@@ -51,20 +77,6 @@ const pool = await getProductPage({
   // the default order and sort client-side (`sortProducts`) instead.
   order: isClientSideSort(order) ? "-created_at" : order,
 });
-
-const collections = await getCollections({ limit: COLLECTIONS_MAX_LIMIT })
-  .then((page) =>
-    page.product_categories
-      .filter((c) => c !== null)
-      .map((c) => ({ id: c.id, name: c.name })),
-  )
-  .catch((error) => {
-    console.error(
-      "[products] Failed to load the collection list for the filter facet; showing none.",
-      error,
-    );
-    return [];
-  });
 
 const filtered = applyProductFacetFilters(pool.products, facetFilters);
 const sorted = sortProducts(filtered, order);

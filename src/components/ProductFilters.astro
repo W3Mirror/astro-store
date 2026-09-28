@@ -3,10 +3,12 @@ import ProductFilterFields from "./ProductFilterFields.astro";
 import {
   buildListingHref,
   EMPTY_FACET_FILTERS,
+  matchesCollectionToken,
   withoutAvailability,
   withoutCollectionId,
   withoutOptionValue,
   withoutPrice,
+  type CollectionFacetOption,
   type OptionFacet,
   type PriceBounds,
   type ProductFacetFilters,
@@ -21,7 +23,7 @@ export interface Props {
   availability: { inStock: number; total: number };
   price?: PriceBounds;
   options: OptionFacet[];
-  collections?: { id: string; name: string }[];
+  collections?: CollectionFacetOption[];
   resultLabel: string;
   stickyParams?: Record<string, string | undefined>;
 }
@@ -67,9 +69,11 @@ if (filters.priceMin !== undefined || filters.priceMax !== undefined) {
   chips.push({ label, href: hrefFor(withoutPrice(filters)) });
 }
 
-for (const id of filters.collectionIds) {
-  const name = collections?.find((collection) => collection.id === id)?.name ?? id;
-  chips.push({ label: name, href: hrefFor(withoutCollectionId(filters, id)) });
+for (const token of filters.collectionIds) {
+  const name =
+    collections?.find((collection) => matchesCollectionToken(collection, token))
+      ?.name ?? token;
+  chips.push({ label: name, href: hrefFor(withoutCollectionId(filters, token)) });
 }
 
 for (const [axisKey, values] of Object.entries(filters.optionFilters)) {

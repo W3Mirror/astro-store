@@ -64,6 +64,14 @@ export interface ProductFacetFilters {
   // Only meaningful on `/products` — `/collections/<handle>` is already
   // scoped to one category via the route itself (see that page's doc
   // comment on why `?category_id=` is ignored there).
+  //
+  // Despite the name, each entry is an opaque TOKEN as it appeared in the
+  // `?collections=` URL param — a collection's clean, merchant-facing
+  // handle (what this template emits, so URLs stay shareable/readable), its
+  // raw/legacy handle, or its raw backend id (both accepted only for
+  // backward compatibility with an older link). Resolve to the Store API's
+  // required category id with `resolveCollectionFacetIds` before querying;
+  // match a token against a known collection with `matchesCollectionToken`.
   collectionIds: string[];
   // Keyed by the slugified option title (`slugifyOptionTitle`), e.g.
   // `{ fabric: ["Cotton", "Silk"], size: ["M"] }`.
@@ -139,6 +147,52 @@ export const withoutCollectionId = (
     (collectionId) => collectionId !== id,
   ),
 });
+
+// --- Handle-based collection facet resolution -------------------------------
+//
+// The `/products?collections=` facet is shopper/URL-facing and must accept
+// (and this template must itself only ever emit) a collection's clean,
+// merchant-facing handle — the same resolution `getCollectionByHandle` uses:
+// `metadata.display_handle`, falling back to the raw backend handle. A raw
+// backend id is still accepted too, for backward compatibility with an
+// older bookmarked/indexed link (and because it's what the Store API's own
+// `category_id` filter actually needs under the hood).
+export interface CollectionFacetOption {
+  id: string;
+  name: string;
+  handle: string;
+  // The raw/legacy handle a category was created with before the clean
+  // `display_handle` convention existed — see `CategoryResult` in
+  // `schemas.ts`. Optional only so a caller that hasn't fetched it can still
+  // match on `handle`/`id`.
+  rawHandle?: string;
+}
+
+export const matchesCollectionToken = (
+  collection: CollectionFacetOption,
+  token: string,
+): boolean =>
+  token === collection.handle ||
+  token === collection.id ||
+  token === collection.rawHandle;
+
+// Resolves whatever a shopper's `collections=` URL param actually contains
+// (a mix of clean handles, legacy raw handles, and/or raw ids — see
+// `matchesCollectionToken`) to the canonical category ids the Store API's
+// `category_id` filter requires. A token that never matches a known
+// collection (a stale/garbage link) is silently dropped rather than sent to
+// the API as a nonsense id.
+export const resolveCollectionFacetIds = (
+  tokens: string[],
+  collections: CollectionFacetOption[],
+): string[] =>
+  tokens
+    .map(
+      (token) =>
+        collections.find((collection) => matchesCollectionToken(collection, token))
+          ?.id,
+    )
+    .filter((id): id is string => Boolean(id));
 
 export const withoutOptionValue = (
   filters: ProductFacetFilters,
