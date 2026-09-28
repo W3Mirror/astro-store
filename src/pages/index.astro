@@ -5,6 +5,7 @@ import Hero from "../components/Hero.astro";
 import Products from "../components/Products.astro";
 import { setCache } from "../utils/cache";
 import { getSiteConfig } from "../utils/site-config";
+import { getPreview } from "../utils/preview-context";
 import { getHomepageSeo } from "../utils/seo";
 
 // The one neutral default hero copy, used whenever the site-config overlay
@@ -15,7 +16,7 @@ const DEFAULT_HERO_SUBHEADING =
 
 const siteConfig = await getSiteConfig();
 const seo = getHomepageSeo(siteConfig);
-const products = await getProducts({});
+const products = await getProducts({}, await getPreview(Astro));
 
 setCache.long(Astro, ["home"]);
 ---

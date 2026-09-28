@@ -16,6 +16,8 @@ import {
   StoreRecommendationsResult,
 } from "./schemas";
 import { config } from "./config";
+import type { PreviewData } from "./preview-context";
+import { findPreviewProductByHandle, mergePreviewPage } from "./preview.js";
 
 // Fields requested on top of Medusa's defaults for /store/products so we get
 // calculated prices (needs `region_id`), inventory and variant options.
@@ -151,7 +153,14 @@ const trimmedCategoryIds = (
 // Get a bounded product page while retaining the configured region for all
 // storefront requests. The Store API returns count/offset/limit metadata that
 // is needed by the catalog route's pagination controls.
-export const getProductPage = async (options: ProductPageOptions = {}) => {
+//
+// `preview` (only ever non-null on a preview-link request — see
+// `utils/preview-context.ts`) merges the store's drafts and staged changes
+// into the page; the Store API request itself is identical either way.
+export const getProductPage = async (
+  options: ProductPageOptions = {},
+  preview: PreviewData | null = null,
+) => {
   const limit = boundedInteger(options.limit, 10, 1, PRODUCT_PAGE_MAX_LIMIT);
   const offset = boundedInteger(options.offset, 0, 0, PRODUCT_PAGE_MAX_OFFSET);
 
@@ -168,19 +177,38 @@ export const getProductPage = async (options: ProductPageOptions = {}) => {
     },
   });
 
-  return ProductPageResult.parse(data);
+  const page = ProductPageResult.parse(data);
+  return preview
+    ? mergePreviewPage(page, preview, {
+        q: options.q,
+        categoryId: options.categoryId,
+        collectionId: options.collectionId,
+        offset,
+      })
+    : page;
 };
 
 // Compatibility wrapper used by the homepage, sitemap, and llms endpoint.
-// Those callers intentionally need only the product array.
-export const getProducts = async (options: ProductPageOptions = {}) => {
-  const page = await getProductPage(options);
+// Those callers intentionally need only the product array. Only the
+// homepage passes `preview` — the sitemap and llms.txt never list drafts.
+export const getProducts = async (
+  options: ProductPageOptions = {},
+  preview: PreviewData | null = null,
+) => {
+  const page = await getProductPage(options, preview);
   return page.products;
 };
 
-// Get a product by its handle (slug)
-export const getProductByHandle = async (options: { handle: string }) => {
+// Get a product by its handle (slug). On a preview request, a draft (or a
+// product with staged changes) at this handle is served from the preview.
+export const getProductByHandle = async (
+  options: { handle: string },
+  preview: PreviewData | null = null,
+) => {
   const { handle } = options;
+
+  const previewProduct = findPreviewProductByHandle(preview, handle);
+  if (previewProduct) return previewProduct;
 
   const data = await medusaFetch<{ products: unknown[] }>("/store/products", {
     params: {

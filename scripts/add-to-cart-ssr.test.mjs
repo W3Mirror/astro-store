@@ -184,3 +184,32 @@ test('renders a disabled, "Sold out" button for a variant with zero tracked stoc
   assert.equal(disabledAddToCartButton(result.body), true);
   assert.match(result.body, /Sold out/);
 });
+
+// Preview links (see `src/utils/preview.js`): a DRAFT product renders with
+// every add-to-bag control disabled and a note saying why; without the flag
+// (a live product, or a product with staged changes) nothing changes.
+test("renders a draft product's add-to-bag disabled with a note in preview", () => {
+  const result = svelteServer.render(pickerMod.default, {
+    props: {
+      product: p16Product,
+      initialVariantId: "var_ray_u",
+      purchaseBlocked: true,
+    },
+  });
+
+  assert.equal(disabledAddToCartButton(result.body), true);
+  assert.match(result.body, /Not available in preview/);
+  assert.match(result.body, /data-preview-purchase-note/);
+  assert.match(result.body, /Preview only/);
+  assert.doesNotMatch(result.body, />\s*Add to bag\s*</);
+});
+
+test("renders no preview markup when purchase isn't blocked", () => {
+  const result = svelteServer.render(pickerMod.default, {
+    props: { product: p16Product, initialVariantId: "var_ray_u" },
+  });
+
+  assert.doesNotMatch(result.body, /Not available in preview/);
+  assert.doesNotMatch(result.body, /data-preview-purchase-note/);
+  assert.doesNotMatch(result.body, /Preview only/);
+});

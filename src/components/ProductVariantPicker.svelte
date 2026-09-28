@@ -40,6 +40,10 @@
     // thumbnail/title the rest of the page already shows.
     productImageUrl?: string | null;
     productTitle?: string;
+    // Preview links only: a DRAFT product can be looked at, never bought
+    // (its variants don't exist for checkout yet) — see
+    // `PreviewProductNotice.astro` for the note shown alongside.
+    purchaseBlocked?: boolean;
   }
 
   let {
@@ -49,6 +53,7 @@
     customFitNote = null,
     productImageUrl = null,
     productTitle = "",
+    purchaseBlocked = false,
   }: Props = $props();
 
   const showPicker = needsVariantPicker(product);
@@ -210,7 +215,9 @@
   });
 
   async function addSelectedVariantToCart() {
-    if (!selectedVariant || !availability.availableForSale) return;
+    if (purchaseBlocked || !selectedVariant || !availability.availableForSale) {
+      return;
+    }
     stickyAddError = "";
     try {
       await addCartItem({ id: selectedVariant.id, quantity: 1 });
@@ -399,6 +406,7 @@
     variantId={selectedVariant?.id ?? ""}
     variantQuantityAvailable={availability.quantityAvailable}
     variantAvailableForSale={Boolean(selectedVariant) && availability.availableForSale}
+    {purchaseBlocked}
   />
 </div>
 
@@ -432,10 +440,12 @@
   <button
     type="button"
     class="button pdp-sticky-atc__button"
-    disabled={$isCartUpdating || !selectedVariant || !availability.availableForSale}
+    disabled={purchaseBlocked || $isCartUpdating || !selectedVariant || !availability.availableForSale}
     onclick={addSelectedVariantToCart}
   >
-    {#if !selectedVariant}
+    {#if purchaseBlocked}
+      Preview only
+    {:else if !selectedVariant}
       Select options
     {:else if !availability.availableForSale}
       Sold out

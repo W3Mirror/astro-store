@@ -20,9 +20,16 @@ import { getProductSeo } from "../../utils/seo";
 import WishlistControl from "../../components/account/WishlistControl.astro";
 import RecommendationSignal from "../../components/RecommendationSignal.svelte";
 import { config } from "../../utils/config";
+import { getPreview } from "../../utils/preview-context";
+import { previewStateOf } from "../../utils/preview.js";
+import PreviewProductNotice from "../../components/PreviewProductNotice.astro";
 
 const { handle } = Astro.params;
-const product = await getProductByHandle({ handle: handle || "" });
+const preview = await getPreview(Astro);
+const product = await getProductByHandle({ handle: handle || "" }, preview);
+// Preview-link requests only (`null` otherwise): a DRAFT can't be bought,
+// and a product with staged changes still checks out at its live price.
+const previewState = product ? previewStateOf(preview, product.id) : null;
 const siteConfig = await getSiteConfig();
 
 if (!product) {
@@ -98,6 +105,7 @@ setCache.short(Astro, product ? ["product", `product:${product.handle}`] : []);
 
           <div class="mt-8 lg:col-span-5 lg:mt-0">
             <ProductInformations title={product.title} />
+            {previewState && <PreviewProductNotice state={previewState} />}
 
             <div>
               <ProductVariantPicker
@@ -108,6 +116,7 @@ setCache.short(Astro, product ? ["product", `product:${product.handle}`] : []);
                 customFitNote={siteConfig.customFitNote}
                 productImageUrl={product.thumbnail || product.images[0]?.url || null}
                 productTitle={product.title}
+                purchaseBlocked={previewState === "draft"}
               />
               <WishlistControl
                 productId={product.id}

@@ -1,0 +1,45 @@
+---
+// Preview links only (see `utils/preview.js`): says what the shopper-to-be
+// is looking at on a product page — a DRAFT (not on the live store, can't
+// be bought), or a product with staged changes (shown as they'll look once
+// published; the bag and checkout still use the current live prices,
+// because staged prices are never charged).
+export interface Props {
+  state: "draft" | "pending";
+}
+const { state } = Astro.props as Props;
+---
+
+<div class="preview-product-notice mt-4 rounded-md px-4 py-3 text-sm" role="note" data-preview-state={state}>
+  {
+    state === "draft" ? (
+      <p>
+        <span class="preview-badge">Draft</span> Not on the live store yet.
+        Adding to the bag is disabled in this preview.
+      </p>
+    ) : (
+      <p>
+        <span class="preview-badge">Pending changes</span> Shown as it will
+        look once published. The bag and checkout still use the current live
+        price until then.
+      </p>
+    )
+  }
+</div>
+
+<style>
+  .preview-product-notice {
+    background-color: #fef3c7;
+    color: #78350f;
+  }
+  .preview-badge {
+    display: inline-block;
+    margin-right: 0.375rem;
+    border-radius: 9999px;
+    background-color: #78350f;
+    padding: 0.125rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #fef3c7;
+  }
+</style>

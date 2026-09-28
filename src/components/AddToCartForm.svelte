@@ -12,9 +12,17 @@
     variantId: string;
     variantQuantityAvailable: number;
     variantAvailableForSale: boolean;
+    // Preview links only — a draft product: the button is disabled and
+    // says why (see `ProductVariantPicker.svelte`).
+    purchaseBlocked?: boolean;
   }
 
-  let { variantId, variantQuantityAvailable, variantAvailableForSale }: Props = $props();
+  let {
+    variantId,
+    variantQuantityAvailable,
+    variantAvailableForSale,
+    purchaseBlocked = false,
+  }: Props = $props();
 
   let selectedQuantity = $state(1);
   let quantityError = $state("");
@@ -50,6 +58,7 @@
       return;
     }
 
+    if (purchaseBlocked) return;
     quantityError = "";
     void addCartItem({ id: variantId, quantity }).catch(() => {
       // The store exposes the readable error through cartError.
@@ -71,7 +80,7 @@
     bind:value={selectedQuantity}
     aria-describedby="quantity-help quantity-error"
     class="mt-2 w-24 rounded-md border border-zinc-300 px-3 py-2 text-zinc-900"
-    disabled={!variantAvailableForSale || noQuantityLeft || $isCartUpdating}
+    disabled={purchaseBlocked || !variantAvailableForSale || noQuantityLeft || $isCartUpdating}
   />
   {#if Number.isFinite(remainingQuantity)}
     <p id="quantity-help" class="mt-1 text-sm text-zinc-500">
@@ -96,7 +105,7 @@
   <button
     type="submit"
     class="button mt-10 w-full"
-    disabled={$isCartUpdating || noQuantityLeft || !variantAvailableForSale}
+    disabled={purchaseBlocked || $isCartUpdating || noQuantityLeft || !variantAvailableForSale}
   >
     {#if $isCartUpdating}
       <svg
@@ -120,12 +129,20 @@
         />
       </svg>
     {/if}
-    {#if variantAvailableForSale}
+    {#if purchaseBlocked}
+      Not available in preview
+    {:else if variantAvailableForSale}
       Add to bag
     {:else}
       Sold out
     {/if}
   </button>
+  {#if purchaseBlocked}
+    <p class="mt-2 text-center text-sm text-zinc-600" data-preview-purchase-note>
+      This product is a draft. It can't be added to the bag until it's
+      published.
+    </p>
+  {/if}
   {#if noQuantityLeft}
     <div class="text-center text-red-600">
       <small>All units left are in your cart</small>

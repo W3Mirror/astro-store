@@ -1,6 +1,7 @@
 ---
 import { getProductPage, getCollections, COLLECTIONS_MAX_LIMIT } from "../../utils/medusa";
 import { getProductPagination } from "../../utils/product-pagination";
+import { getPreview } from "../../utils/preview-context";
 import { parseProductQuery } from "../../utils/product-query";
 import {
   applyProductFacetFilters,
@@ -76,7 +77,7 @@ const pool = await getProductPage({
   // A price sort can't be requested from the Store API — fetch the pool in
   // the default order and sort client-side (`sortProducts`) instead.
   order: isClientSideSort(order) ? "-created_at" : order,
-});
+}, await getPreview(Astro));
 
 const filtered = applyProductFacetFilters(pool.products, facetFilters);
 const sorted = sortProducts(filtered, order);

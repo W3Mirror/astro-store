@@ -4,6 +4,8 @@ import type { ProductResult } from "../utils/schemas";
 import { toMoney } from "../utils/medusa";
 import { getDefaultVariant } from "../utils/variant-selection";
 import { getProductBadges } from "../utils/product-badges";
+import { getPreview } from "../utils/preview-context";
+import { previewStateOf } from "../utils/preview.js";
 
 import ResponsiveImage from "./ResponsiveImage.svelte";
 import Money from "./Money.svelte";
@@ -29,6 +31,10 @@ const secondaryImage =
 const defaultVariant = product ? getDefaultVariant(product) : undefined;
 const price = toMoney(defaultVariant?.calculated_price);
 const badges = product ? getProductBadges(product, defaultVariant) : null;
+// Preview links only (always `null` on a normal request).
+const previewState = product
+  ? previewStateOf(await getPreview(Astro), product.id)
+  : null;
 ---
 
 <a
@@ -62,7 +68,16 @@ const badges = product ? getProductBadges(product, defaultVariant) : null;
       )
     }
     {
-      badges && (badges.soldOut || badges.sale || badges.isNew) && (
+      previewState && (
+        <div class="product-card__badges" data-preview-state={previewState}>
+          <span class="product-card__badge product-card__badge--preview">
+            {previewState === "draft" ? "Draft" : "Pending changes"}
+          </span>
+        </div>
+      )
+    }
+    {
+      !previewState && badges && (badges.soldOut || badges.sale || badges.isNew) && (
         <div class="product-card__badges">
           {badges.soldOut ? (
             <span class="product-card__badge product-card__badge--sold-out">

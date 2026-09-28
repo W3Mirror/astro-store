@@ -642,6 +642,12 @@
     background: var(--store-muted);
   }
 
+  /* Preview links only — see `utils/preview.js`. */
+  .product-card__badge--preview {
+    background: #78350f;
+    color: #fef3c7;
+  }
+
   .product-card__copy {
     color: var(--store-ink);
   }

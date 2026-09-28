@@ -1,0 +1,112 @@
+---
+import { PREVIEW_PARAM, previewExitHref } from "../utils/preview.js";
+
+// Preview links only (see `utils/preview.js`): a visible banner on every
+// page while previewing, with a way out. Renders nothing on a normal
+// request (`Astro.locals.preview` is only set when the request carries a
+// preview token).
+const request = Astro.locals.preview;
+const status = request ? await request.status() : null;
+const exitHref = previewExitHref(Astro.url.href);
+const expiresAt =
+  status?.kind === "active"
+    ? new Date(status.data.link.expires_at).toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      })
+    : null;
+---
+
+{
+  request && status && (
+    <div
+      class="preview-banner flex flex-wrap items-center justify-center gap-x-4 gap-y-1 px-4 py-2 text-center text-sm"
+      role="status"
+      aria-live="polite"
+      data-preview-banner={status.kind}
+    >
+      {status.kind === "active" ? (
+        <span>
+          <strong>Preview</strong> — drafts and unpublished changes are shown.
+          Shoppers don't see them yet. Link expires {expiresAt}.
+        </span>
+      ) : status.kind === "invalid" ? (
+        <span>
+          <strong>Preview</strong> — this preview link has expired or was
+          turned off. You're seeing the live store.
+        </span>
+      ) : (
+        <span>
+          <strong>Preview</strong> — preview content couldn't be loaded right
+          now. You're seeing the live store.
+        </span>
+      )}
+      <a class="preview-banner__exit underline" href={exitHref}>
+        Exit preview
+      </a>
+    </div>
+  )
+}
+
+{
+  status?.kind === "active" && (
+    <script
+      is:inline
+      data-preview-links
+      data-param={PREVIEW_PARAM}
+      data-token={request!.token}
+    >
+      // Keeps every same-site navigation inside the preview: the token rides
+      // along on links and GET forms, so a cached live copy of the next page
+      // (served by the CDN before this site's server ever sees the preview
+      // cookie) can't be shown in its place.
+      (() => {
+      const data = document.currentScript?.dataset ?? {};
+      const name = data.param;
+      const value = data.token;
+      if (!name || !value) return;
+      {
+        const sameSite = (url) => url.origin === window.location.origin;
+        document.addEventListener(
+          "click",
+          (event) => {
+            const link = event.target instanceof Element
+              ? event.target.closest("a[href]")
+              : null;
+            if (!link) return;
+            const url = new URL(link.href, window.location.href);
+            if (!sameSite(url) || url.searchParams.has(name)) return;
+            url.searchParams.set(name, value);
+            link.href = url.toString();
+          },
+          true,
+        );
+        document.addEventListener(
+          "submit",
+          (event) => {
+            const form = event.target;
+            if (!(form instanceof HTMLFormElement)) return;
+            if (form.method.toLowerCase() !== "get") return;
+            if (!sameSite(new URL(form.action, window.location.href))) return;
+            if (form.querySelector(`input[name="${name}"]`)) return;
+            const input = document.createElement("input");
+            input.type = "hidden";
+            input.name = name;
+            input.value = value;
+            form.append(input);
+          },
+          true,
+        );
+      }
+      })();
+    </script>
+  )
+}
+
+<style>
+  .preview-banner {
+    background-color: #78350f;
+    color: #fef3c7;
+  }
+</style>

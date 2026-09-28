@@ -99,6 +99,18 @@ The home response is edge-cacheable for 60 seconds, cart islands hydrate on
 these guarantees measurable with `pnpm test:first-paint`; run it alongside
 `pnpm typecheck` and both production builds when changing the home page.
 
+## Preview links (drafts and staged changes)
+
+A storefront URL with `?preview=<token>` (minted by the store builder's
+`create_preview_link`) renders the store's draft products and staged product
+changes — no extra env var: the builder's preview endpoint is derived from
+`PUBLIC_SITE_CONFIG_URL` (`src/utils/preview.js`'s `previewEndpointUrl`), and
+the token is only ever sent server-to-server. The token is kept in an
+httpOnly session cookie (`store_preview`); `?preview=exit` ends preview.
+Preview responses are `private, no-store`, carry no CDN cache headers and are
+`noindex`; normal requests are untouched (see `src/middleware.ts` and
+`scripts/preview-mode.test.mjs`).
+
 ## Sandbox-preview flow (Vercel Sandbox)
 
 The Vercel-Sandbox-based preview flow (used for quick reviewer/agent

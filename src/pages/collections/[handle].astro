@@ -1,6 +1,7 @@
 ---
 import { getCollectionByHandle, getProductPage } from "../../utils/medusa";
 import { getProductPagination } from "../../utils/product-pagination";
+import { getPreview } from "../../utils/preview-context";
 import { parseProductQuery } from "../../utils/product-query";
 import {
   applyProductFacetFilters,
@@ -55,7 +56,7 @@ const pool =
         offset: 0,
         categoryId: collection.id,
         order: isClientSideSort(order) ? "-created_at" : order,
-      })
+      }, await getPreview(Astro))
     : null;
 
 const filtered =

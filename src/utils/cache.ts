@@ -47,6 +47,13 @@ const applyEdgeHeaders = (
   browserCacheControl: string,
   tags: string[],
 ) => {
+  // A preview-link request (see `utils/preview.js`) is never cacheable —
+  // `middleware.ts` enforces that on the final response too; this just
+  // never asks for caching in the first place.
+  if (Astro.locals.preview) {
+    Astro.response.headers.set("Cache-Control", "private, no-store, max-age=0");
+    return;
+  }
   Astro.response.headers.set("Cache-Control", browserCacheControl);
   Astro.response.headers.set("Vercel-CDN-Cache-Control", EDGE_CACHE_CONTROL);
 

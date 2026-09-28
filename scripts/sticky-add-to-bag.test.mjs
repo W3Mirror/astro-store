@@ -38,7 +38,9 @@ test("the sticky bar shows the selected variant's price and disables/labels per 
   assert.match(bar, /<Money price=\{price\}\s*\/>/);
   assert.match(
     bar,
-    /disabled=\{\$isCartUpdating \|\| !selectedVariant \|\| !availability\.availableForSale\}/,
+    // `purchaseBlocked` (a draft product in a preview link — see
+    // `scripts/preview-mode.test.mjs`) additionally disables it.
+    /disabled=\{purchaseBlocked \|\| \$isCartUpdating \|\| !selectedVariant \|\| !availability\.availableForSale\}/,
   );
   assert.match(bar, /Select options/);
   assert.match(bar, /Sold out/);
