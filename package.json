@@ -24,7 +24,11 @@
     "test:collections": "node --test scripts/collections-contract.test.mjs",
     "test:add-to-cart-ssr": "node --test scripts/add-to-cart-ssr.test.mjs",
     "test:branding": "node --test scripts/branding-contract.test.mjs",
-    "test:theme": "node --test scripts/theme-contract.test.mjs"
+    "test:theme": "node --test scripts/theme-contract.test.mjs",
+    "test:storefront-settings": "node --test scripts/storefront-settings-contract.test.mjs",
+    "test:product-filters": "node --test scripts/product-filters.test.mjs",
+    "test:option-pickers": "node --test scripts/option-pickers.test.mjs",
+    "test:reviews": "node --test scripts/reviews-contract.test.mjs"
   },
   "dependencies": {
     "@astrojs/cloudflare": "^12.6.13",

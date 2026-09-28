@@ -1,16 +1,24 @@
 ---
 import { config } from "../utils/config";
+import { getSiteConfig } from "../utils/site-config";
 
 // Visible, accessible marker that this build is the test twin, not the
 // live storefront — orders placed here are never real. Only rendered when
 // this build was made with PUBLIC_STORE_ENVIRONMENT=test; the live build
 // renders nothing here (see AnnouncementBar.astro for the analogous
-// merchant-configured banner).
+// merchant-configured banner) *regardless* of `showTestBanner` below — that
+// setting only ever suppresses the banner on a Test build, never enables it
+// on Live. Intended for a Test URL that's being shared for review, not
+// shown to real shoppers.
 const isTestEnvironment = config.storeEnvironment === "test";
+const siteConfig = isTestEnvironment
+  ? await getSiteConfig()
+  : null;
+const showBanner = isTestEnvironment && siteConfig!.showTestBanner;
 ---
 
 {
-  isTestEnvironment && (
+  showBanner && (
     <div
       class="test-store-banner flex items-center justify-center px-4 py-2 text-center text-sm font-bold"
       role="status"

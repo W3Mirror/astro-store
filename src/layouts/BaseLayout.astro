@@ -4,6 +4,7 @@ import Footer from "../components/Footer.astro";
 import CartDrawer from "../components/CartDrawer.svelte";
 import AnnouncementBar from "../components/AnnouncementBar.astro";
 import TestStoreBanner from "../components/TestStoreBanner.astro";
+import DialogController from "../components/DialogController.astro";
 import { getSiteConfig } from "../utils/site-config";
 import { config } from "../utils/config";
 import { googleFontsHref, themeStyleBlock } from "../utils/theme";
@@ -109,6 +110,7 @@ const fontHref = googleFontsHref([
     {themeStyle && <style set:html={themeStyle} />}
   </head>
   <body>
+    <DialogController />
     <TestStoreBanner />
     <AnnouncementBar />
     <CartDrawer client:idle />

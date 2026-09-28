@@ -1,0 +1,286 @@
+---
+import ProductFilterFields from "./ProductFilterFields.astro";
+import {
+  buildListingHref,
+  EMPTY_FACET_FILTERS,
+  withoutAvailability,
+  withoutCollectionId,
+  withoutOptionValue,
+  withoutPrice,
+  type OptionFacet,
+  type PriceBounds,
+  type ProductFacetFilters,
+} from "../utils/product-filters";
+
+export interface Props {
+  basePath: string;
+  q?: string;
+  limit: number;
+  order: string;
+  filters: ProductFacetFilters;
+  availability: { inStock: number; total: number };
+  price?: PriceBounds;
+  options: OptionFacet[];
+  collections?: { id: string; name: string }[];
+  resultLabel: string;
+  stickyParams?: Record<string, string | undefined>;
+}
+
+const {
+  basePath,
+  q,
+  limit,
+  order,
+  filters,
+  availability,
+  price,
+  options,
+  collections,
+  resultLabel,
+  stickyParams,
+} = Astro.props as Props;
+
+const hrefFor = (facets: ProductFacetFilters) =>
+  buildListingHref(basePath, { q, order, limit, facets, stickyParams });
+
+interface Chip {
+  label: string;
+  href: string;
+}
+
+const chips: Chip[] = [];
+
+if (filters.inStockOnly) {
+  chips.push({
+    label: "In stock",
+    href: hrefFor(withoutAvailability(filters)),
+  });
+}
+
+if (filters.priceMin !== undefined || filters.priceMax !== undefined) {
+  const label =
+    filters.priceMin !== undefined && filters.priceMax !== undefined
+      ? `Price: ${filters.priceMin}–${filters.priceMax}`
+      : filters.priceMin !== undefined
+        ? `Price: from ${filters.priceMin}`
+        : `Price: up to ${filters.priceMax}`;
+  chips.push({ label, href: hrefFor(withoutPrice(filters)) });
+}
+
+for (const id of filters.collectionIds) {
+  const name = collections?.find((collection) => collection.id === id)?.name ?? id;
+  chips.push({ label: name, href: hrefFor(withoutCollectionId(filters, id)) });
+}
+
+for (const [axisKey, values] of Object.entries(filters.optionFilters)) {
+  const axisTitle = options.find((axis) => axis.axisKey === axisKey)?.title ?? axisKey;
+  for (const value of values) {
+    chips.push({
+      label: `${axisTitle}: ${value}`,
+      href: hrefFor(withoutOptionValue(filters, axisKey, value)),
+    });
+  }
+}
+
+const clearAllHref = buildListingHref(basePath, {
+  q,
+  order: "-created_at",
+  limit,
+  facets: EMPTY_FACET_FILTERS,
+  stickyParams,
+});
+---
+
+<div class="product-filters">
+  <div class="product-filters__toolbar">
+    <button
+      type="button"
+      class="product-filters__mobile-trigger lg:hidden"
+      data-open-dialog="filter-sheet"
+      aria-controls="filter-sheet"
+      aria-haspopup="dialog"
+      aria-expanded="false"
+    >
+      Filter &amp; Sort
+      {chips.length > 0 && <span class="product-filters__badge">{chips.length}</span>}
+    </button>
+    <p class="product-filters__result-count">{resultLabel}</p>
+  </div>
+
+  {
+    chips.length > 0 && (
+      <div class="product-filters__chips">
+        {chips.map((chip) => (
+          <a class="product-filters__chip" href={chip.href}>
+            {chip.label}
+            <span aria-hidden="true"> ×</span>
+          </a>
+        ))}
+        <a class="product-filters__chip product-filters__chip--clear" href={clearAllHref}>
+          Clear all
+        </a>
+      </div>
+    )
+  }
+
+  <aside class="product-filters__sidebar hidden lg:block" aria-label="Filter products">
+    <ProductFilterFields
+      idPrefix="d"
+      q={q}
+      limit={limit}
+      order={order}
+      filters={filters}
+      availability={availability}
+      price={price}
+      options={options}
+      collections={collections}
+      stickyParams={stickyParams}
+    />
+  </aside>
+</div>
+
+<dialog id="filter-sheet" class="filter-sheet" aria-label="Filter and sort products">
+  <div class="filter-sheet__header">
+    <span class="text-lg font-semibold">Filter &amp; Sort</span>
+    <button type="button" class="filter-sheet__close" data-close-dialog>
+      <span class="sr-only">Close</span>
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke-width="1.5"
+        stroke="currentColor"
+        class="h-6 w-6"
+        aria-hidden="true"
+      >
+        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+      </svg>
+    </button>
+  </div>
+  <div class="filter-sheet__body">
+    <ProductFilterFields
+      idPrefix="m"
+      q={q}
+      limit={limit}
+      order={order}
+      filters={filters}
+      availability={availability}
+      price={price}
+      options={options}
+      collections={collections}
+      stickyParams={stickyParams}
+    />
+  </div>
+</dialog>
+
+<script>
+  // Progressive enhancement only: every filter still works via the "Apply"
+  // button (a plain GET submit) with JS disabled. When JS is available,
+  // ticking a checkbox submits its form immediately so the result list
+  // updates without an extra tap.
+  document.addEventListener("change", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement) || target.type !== "checkbox") {
+      return;
+    }
+    const form = target.closest("[data-auto-submit-filters]");
+    if (form instanceof HTMLFormElement) form.requestSubmit();
+  });
+</script>
+
+<style>
+  .product-filters__toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .product-filters__mobile-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    border: 1px solid var(--store-line, #e7e5e4);
+    border-radius: var(--store-radius, 0.5rem);
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+  }
+
+  .product-filters__badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.25rem;
+    height: 1.25rem;
+    border-radius: 999px;
+    background: var(--store-highlight, #064e3b);
+    color: white;
+    font-size: 0.7rem;
+    padding: 0 0.35rem;
+  }
+
+  .product-filters__result-count {
+    font-size: 0.875rem;
+    color: var(--store-muted, #78716c);
+  }
+
+  .product-filters__chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .product-filters__chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    border: 1px solid var(--store-line, #e7e5e4);
+    border-radius: 999px;
+    padding: 0.3rem 0.75rem;
+    font-size: 0.8rem;
+  }
+
+  .product-filters__chip--clear {
+    border-style: dashed;
+    color: var(--store-muted, #78716c);
+  }
+
+  .product-filters__sidebar {
+    width: 16rem;
+    flex: 0 0 16rem;
+  }
+
+  .filter-sheet {
+    position: fixed;
+    inset: auto 0 0 0;
+    margin: 0;
+    width: 100%;
+    max-width: 100%;
+    max-height: 85vh;
+    border: 0;
+    border-radius: 1rem 1rem 0 0;
+    padding: 0;
+    background: var(--store-canvas, #fff);
+    color: var(--store-ink, #1c1917);
+  }
+
+  .filter-sheet::backdrop {
+    background: rgb(0 0 0 / 45%);
+  }
+
+  .filter-sheet__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--store-line, #e7e5e4);
+  }
+
+  .filter-sheet__body {
+    padding: 1rem 1.25rem 1.5rem;
+    overflow-y: auto;
+  }
+</style>

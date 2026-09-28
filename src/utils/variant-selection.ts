@@ -96,6 +96,11 @@ export interface OptionValueState {
   // That variant (only meaningful when `exists`) currently has stock.
   inStock: boolean;
   selected: boolean;
+  // The image of the variant this value would resolve to (holding the rest
+  // of the current selection fixed) — see `getVariantImageUrl`. Undefined
+  // when that variant doesn't exist or carries no image; a Colour-style
+  // swatch falls back to a plain text chip in that case (rule 4d).
+  imageUrl?: string;
 }
 
 export interface OptionGroupState {
@@ -129,6 +134,7 @@ export const buildOptionGroups = (
         exists: Boolean(candidate),
         inStock: availability.availableForSale,
         selected: selection[option.id] === optionValue.value,
+        imageUrl: getVariantImageUrl(candidate),
       };
     }),
   }));
@@ -139,3 +145,80 @@ export const buildOptionGroups = (
 export const needsVariantPicker = (
   product: Pick<Product, "options" | "variants">,
 ): boolean => product.variants.length > 1 && product.options.length > 0;
+
+// Per-variant imagery isn't a first-class product relation in Medusa yet —
+// see `VariantResult`'s doc comment in `schemas.ts`. Until it is, a
+// merchant can set `metadata.image_url` on a variant and this picks it up;
+// absent metadata (the common case today) returns `undefined` so callers
+// fall back to today's behavior exactly (no image, plain text chip).
+export const getVariantImageUrl = (
+  variant: Variant | undefined | null,
+): string | undefined => {
+  const url = variant?.metadata?.image_url;
+  return typeof url === "string" && url.trim().length > 0
+    ? url
+    : undefined;
+};
+
+// Generic (never store-specific) option-name matchers — used to decide
+// which *kind* of control an option gets, never which store-specific
+// values it has.
+export const isColourOptionTitle = (title: string): boolean =>
+  /^colou?r$/i.test(title.trim());
+
+export const isSizeOptionTitle = (title: string): boolean =>
+  title.trim().toLowerCase() === "size";
+
+export interface ForcedOption {
+  optionId: string;
+  value: string;
+}
+
+// Rule 4a: "given the other current selections, if an option has exactly
+// one valid value, auto-select it and hide its control" — e.g. Type
+// [Unstitched, Stitched] x Size [Free Size, XS...3XL], where Unstitched
+// pairs only with Free Size.
+//
+// This walks `product.options` in DECLARATION ORDER, treating it as
+// "primary chooser first": each option's set of reachable values is
+// computed by constraining only the options *before* it (to their current
+// selection, once decided), never the options after it. That directional
+// constraint is what keeps this asymmetric — without it, evaluating every
+// option against every *other* option's current value (the symmetric
+// definition `buildOptionGroups` uses for disabled-state rendering, which
+// must stay exactly as-is) would also flag Type as "forced" whenever the
+// shopper happens to be sitted on the one Type value paired with the
+// currently-selected Size, which is not the intended rule.
+export const computeForcedOptions = (
+  product: Pick<Product, "options" | "variants">,
+  selection: VariantSelection,
+): ForcedOption[] => {
+  const forced: ForcedOption[] = [];
+  const priorSelection: VariantSelection = {};
+
+  for (const option of product.options) {
+    const reachableValues = new Set<string>();
+    for (const variant of product.variants) {
+      const variantSelection = selectionFromVariant(variant);
+      const matchesPrior = Object.entries(priorSelection).every(
+        ([optionId, value]) => variantSelection[optionId] === value,
+      );
+      if (!matchesPrior) continue;
+
+      const value = variantSelection[option.id];
+      if (value !== undefined) reachableValues.add(value);
+    }
+
+    if (reachableValues.size === 1) {
+      const [onlyValue] = reachableValues;
+      forced.push({ optionId: option.id, value: onlyValue });
+      priorSelection[option.id] = onlyValue;
+    } else if (selection[option.id] !== undefined) {
+      // Not forced — carry the shopper's actual current pick forward so a
+      // later option's reachable set reflects it.
+      priorSelection[option.id] = selection[option.id];
+    }
+  }
+
+  return forced;
+};

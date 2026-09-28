@@ -36,9 +36,20 @@ export const parseProductQuery = (params: URLSearchParams): ProductQuery => {
     query: trimmedParam(params.get("q")),
     collectionId: trimmedParam(params.get("collection_id")),
     categoryId: trimmedParam(params.get("category_id")),
-    order: ["-created_at", "created_at", "title", "-title"].includes(
-      requestedOrder || "",
-    )
+    // `price-asc`/`price-desc` aren't a Store API sort the backend
+    // understands (calculated price isn't a sortable field there) — see
+    // `product-filters.ts`'s module doc. Accepting them here just means a
+    // page carrying that value in its URL doesn't get silently reset to the
+    // default; whether to fetch a bounded pool and sort client-side instead
+    // of passing `order` straight through is the page's decision.
+    order: [
+      "-created_at",
+      "created_at",
+      "title",
+      "-title",
+      "price-asc",
+      "price-desc",
+    ].includes(requestedOrder || "")
       ? requestedOrder!
       : "-created_at",
   };

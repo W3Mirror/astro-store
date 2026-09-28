@@ -107,6 +107,8 @@ setCache.short(Astro, product ? ["product", `product:${product.handle}`] : []);
                 client:load
                 product={product}
                 initialVariantId={initialVariant?.id}
+                sizeChartImageUrl={siteConfig.sizeChartImageUrl}
+                customFitNote={siteConfig.customFitNote}
               />
               <WishlistControl
                 productId={product.id}
@@ -125,9 +127,7 @@ setCache.short(Astro, product ? ["product", `product:${product.handle}`] : []);
         <RecommendationSignal client:load productId={product.id} />
       )}
 
-      <section class="container">
-        <ProductReviews />
-      </section>
+      <ProductReviews />
 
       <section class="container">
         <ProductRecommendations

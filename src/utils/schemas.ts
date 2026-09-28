@@ -107,6 +107,20 @@ export const SiteConfigOverlayResult = z.object({
   heroImageUrl: z.string().nullable().optional(),
   heroImageAlt: z.string().nullable().optional(),
   aboutImageUrl: z.string().nullable().optional(),
+  // Storefront contact/PDP settings (`packages/backend-core`'s
+  // `project_site_config.storefront` jsonb on the ecomm-ai side — see that
+  // repo's `site-config.ts`). All three are optional/nullable; unset means
+  // "the feature they gate stays off" (no WhatsApp link, no size chart
+  // modal, no custom-fit note), never a template crash.
+  whatsappNumber: z.string().nullable().optional(),
+  sizeChartImageUrl: z.string().nullable().optional(),
+  customFitNote: z.string().nullable().optional(),
+  // Hides the "Test store — orders aren't real" notice on the Test build
+  // only (see `TestStoreBanner.astro`) — defaults to `true` (shown) when
+  // unset. This can never affect a LIVE build: `TestStoreBanner.astro`
+  // gates on `config.storeEnvironment === "test"` first, which is a
+  // build-time env value this per-environment overlay never touches.
+  showTestBanner: z.boolean().nullable().optional(),
   theme: ThemeOverlayResult.nullable().optional(),
   seo: z
     .object({
@@ -176,6 +190,15 @@ export const VariantResult = z.object({
   manage_inventory: z.boolean().nullable().optional(),
   options: z.array(VariantOptionResult).optional().default([]),
   calculated_price: CalculatedPriceResult.optional(),
+  // Per-variant imagery isn't in the product data model yet — a variant
+  // carries no `images` relation in Medusa. Until that ships, a merchant
+  // can set `metadata.image_url` on a variant (e.g. a Colour variant) and
+  // the storefront picks it up: colour swatches render that image instead
+  // of a plain chip, and the gallery's main image swaps to it when that
+  // variant becomes selected — see `getVariantImageUrl` in
+  // `variant-selection.ts`. Absent metadata is the common case today and
+  // must fall back to today's behavior exactly (text chip, no image swap).
+  metadata: z.record(z.string(), z.unknown()).nullable().optional(),
 });
 
 export const ProductResult = z

@@ -3,8 +3,9 @@ import CartIcon from "./CartIcon.svelte";
 import ResponsiveImage from "./ResponsiveImage.svelte";
 import { getSiteConfig } from "../utils/site-config";
 import { getCustomerToken } from "../utils/customer-account";
-import { getCollections } from "../utils/medusa";
+import { getCollections, COLLECTIONS_MAX_LIMIT } from "../utils/medusa";
 import { safeHeaderLogoHeight } from "../utils/theme";
+import { isValidWhatsappNumber, whatsappLink } from "../utils/contact";
 
 const siteConfig = await getSiteConfig();
 // "md" (h-8 sm:h-10) is this template's pre-existing default — unchanged
@@ -33,28 +34,72 @@ const collections = await getCollections({ limit: NAV_COLLECTION_LIMIT })
     );
     return [];
   });
+
+// The mobile nav drawer lists every storefront-visible collection, not the
+// capped set above — bounded only by the same ceiling
+// `getCollectionByHandle` already relies on (`COLLECTIONS_MAX_LIMIT`).
+const allCollections = await getCollections({ limit: COLLECTIONS_MAX_LIMIT })
+  .then((page) => page.product_categories.filter((c) => c !== null))
+  .catch((error) => {
+    console.error(
+      "[header] Failed to load the full collection list for the nav drawer; showing none.",
+      error,
+    );
+    return [];
+  });
+
+const whatsappHref = isValidWhatsappNumber(siteConfig.whatsappNumber)
+  ? whatsappLink(siteConfig.whatsappNumber)
+  : null;
 ---
 
 <header class="store-header sticky top-0 z-40">
   <div class="store-header__surface border-b py-3 backdrop-blur-2xl">
     <div class="container grid grid-cols-3 items-center">
-      <a href="/" class="store-wordmark flex items-center">
-        {
-          siteConfig.logoUrl ? (
-            <ResponsiveImage
-              image={{ url: siteConfig.logoUrl }}
-              alt={siteConfig.storeName}
-              classList={logoHeightClass}
-              loading="eager"
-              fetchpriority="high"
+      <div class="flex items-center gap-1">
+        <button
+          type="button"
+          class="-ml-2 flex h-10 w-10 items-center justify-center rounded-lg md:hidden"
+          data-open-dialog="nav-drawer"
+          aria-controls="nav-drawer"
+          aria-haspopup="dialog"
+          aria-expanded="false"
+        >
+          <span class="sr-only">Open menu</span>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke-width="1.5"
+            stroke="currentColor"
+            class="h-6 w-6"
+            aria-hidden="true"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"
             />
-          ) : (
-            <span class="text-sm font-semibold sm:text-xl">
-              {siteConfig.storeName}
-            </span>
-          )
-        }
-      </a>
+          </svg>
+        </button>
+        <a href="/" class="store-wordmark flex items-center">
+          {
+            siteConfig.logoUrl ? (
+              <ResponsiveImage
+                image={{ url: siteConfig.logoUrl }}
+                alt={siteConfig.storeName}
+                classList={logoHeightClass}
+                loading="eager"
+                fetchpriority="high"
+              />
+            ) : (
+              <span class="text-sm font-semibold sm:text-xl">
+                {siteConfig.storeName}
+              </span>
+            )
+          }
+        </a>
+      </div>
       <div></div>
       <div class="flex items-center gap-4 justify-self-end">
         <a
@@ -70,7 +115,7 @@ const collections = await getCollections({ limit: NAV_COLLECTION_LIMIT })
       collections.length > 0 && (
         <nav
           aria-label="Collections"
-          class="container mt-3 flex gap-4 overflow-x-auto pb-1 text-sm font-medium whitespace-nowrap"
+          class="container mt-3 hidden gap-4 overflow-x-auto pb-1 text-sm font-medium whitespace-nowrap md:flex"
         >
           <a href="/" class="text-zinc-600 hover:text-emerald-900">
             Home
@@ -91,3 +136,125 @@ const collections = await getCollections({ limit: NAV_COLLECTION_LIMIT })
     }
   </div>
 </header>
+
+<dialog id="nav-drawer" class="nav-drawer" aria-label="Site navigation">
+  <div class="nav-drawer__header">
+    <span class="text-lg font-semibold">Menu</span>
+    <button
+      type="button"
+      class="-mr-2 flex h-10 w-10 items-center justify-center rounded-lg"
+      data-close-dialog
+    >
+      <span class="sr-only">Close menu</span>
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke-width="1.5"
+        stroke="currentColor"
+        class="h-6 w-6"
+        aria-hidden="true"
+      >
+        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+      </svg>
+    </button>
+  </div>
+  <nav aria-label="Site navigation" class="nav-drawer__body">
+    <ul class="flex flex-col gap-1 text-base font-medium">
+      <li>
+        <a class="nav-drawer__link" href="/products">Shop all</a>
+      </li>
+      {
+        allCollections.map((collection) => (
+          <li>
+            <a
+              class="nav-drawer__link"
+              href={`/collections/${collection.handle}`}
+            >
+              {collection.name}
+            </a>
+          </li>
+        ))
+      }
+      <li>
+        <a class="nav-drawer__link" href="/collections">All collections</a>
+      </li>
+      <li>
+        <a class="nav-drawer__link" href="/about">About</a>
+      </li>
+      {
+        whatsappHref && (
+          <li>
+            <a
+              class="nav-drawer__link"
+              href={whatsappHref}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Contact us on WhatsApp
+            </a>
+          </li>
+        )
+      }
+    </ul>
+  </nav>
+</dialog>
+
+<style>
+  .nav-drawer {
+    position: fixed;
+    inset: 0 25% 0 0;
+    max-width: 22rem;
+    width: 100%;
+    height: 100%;
+    max-height: 100%;
+    margin: 0;
+    border: 0;
+    padding: 0;
+    background: var(--store-canvas, #fff);
+    color: var(--store-ink, #1c1917);
+  }
+
+  .nav-drawer::backdrop {
+    background: rgb(0 0 0 / 45%);
+  }
+
+  .nav-drawer__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--store-line, #e7e5e4);
+  }
+
+  .nav-drawer__body {
+    padding: 1rem 1.25rem;
+    overflow-y: auto;
+  }
+
+  .nav-drawer__link {
+    display: block;
+    padding: 0.75rem 0.25rem;
+    border-bottom: 1px solid var(--store-line, #e7e5e4);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .nav-drawer {
+      transition:
+        transform 0.25s ease,
+        overlay 0.25s ease allow-discrete,
+        display 0.25s ease allow-discrete;
+      transform: translateX(-100%);
+    }
+
+    .nav-drawer[open] {
+      transform: translateX(0);
+    }
+
+    @starting-style {
+      .nav-drawer[open] {
+        transform: translateX(-100%);
+      }
+    }
+  }
+</style>

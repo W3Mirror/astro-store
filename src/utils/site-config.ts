@@ -20,6 +20,15 @@ export interface SiteConfig {
   heroImageUrl: string | null;
   heroImageAlt: string | null;
   aboutImageUrl: string | null;
+  // Storefront contact/PDP settings. `null` (never an empty string) when
+  // unset — see `schemas.ts`'s `SiteConfigOverlayResult` doc comment.
+  whatsappNumber: string | null;
+  sizeChartImageUrl: string | null;
+  customFitNote: string | null;
+  // Whether to render the Test-build "orders aren't real" banner. Defaults
+  // to `true` (shown) — see `TestStoreBanner.astro`. Irrelevant on a LIVE
+  // build, which never renders that banner regardless of this value.
+  showTestBanner: boolean;
   // Typed THEME settings (colors, radius, fonts, header logo height,
   // announcement style) — see `utils/theme.ts`. Every field is `null` when
   // unset, meaning "use the template default" (never an empty string).
@@ -69,6 +78,10 @@ const envDefaults = (): SiteConfig => ({
   heroImageUrl: null,
   heroImageAlt: null,
   aboutImageUrl: null,
+  whatsappNumber: null,
+  sizeChartImageUrl: null,
+  customFitNote: null,
+  showTestBanner: true,
   theme: {
     accent: null,
     accentContrast: null,
@@ -126,6 +139,11 @@ const fetchSiteConfig = async (): Promise<SiteConfig> => {
       heroImageUrl: overlay.heroImageUrl || defaults.heroImageUrl,
       heroImageAlt: overlay.heroImageAlt || defaults.heroImageAlt,
       aboutImageUrl: overlay.aboutImageUrl || defaults.aboutImageUrl,
+      whatsappNumber: overlay.whatsappNumber || defaults.whatsappNumber,
+      sizeChartImageUrl:
+        overlay.sizeChartImageUrl || defaults.sizeChartImageUrl,
+      customFitNote: overlay.customFitNote || defaults.customFitNote,
+      showTestBanner: overlay.showTestBanner ?? defaults.showTestBanner,
       theme: {
         accent: overlay.theme?.accent ?? null,
         accentContrast: overlay.theme?.accentContrast ?? null,

@@ -2,9 +2,21 @@
 import { getCollectionByHandle, getProductPage } from "../../utils/medusa";
 import { getProductPagination } from "../../utils/product-pagination";
 import { parseProductQuery } from "../../utils/product-query";
+import {
+  applyProductFacetFilters,
+  buildListingHref,
+  deriveAvailabilityCounts,
+  deriveOptionFacets,
+  derivePriceBounds,
+  FILTER_FETCH_CAP,
+  isClientSideSort,
+  parseProductFacetFilters,
+  sortProducts,
+} from "../../utils/product-filters";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import NotFoundLayout from "../../layouts/NotFoundLayout.astro";
 import Products from "../../components/Products.astro";
+import ProductFilters from "../../components/ProductFilters.astro";
 import ProductPaginationNav from "../../components/ProductPaginationNav.astro";
 import ResponsiveImage from "../../components/ResponsiveImage.svelte";
 
@@ -28,36 +40,51 @@ if (!collection) {
 }
 
 // The route's own `handle` is the only source of collection scoping — a
-// `?category_id=`/`?collection_id=` on this URL is ignored so a shopper (or
-// a crawled link) can never widen/redirect this page to a different
-// collection than the one in its path.
+// `?collections=` facet selection on this URL is ignored (this page is
+// already scoped to one collection via its path) so a shopper or a crawled
+// link can never widen/redirect this page to a different collection.
 const { limit, offset, order } = parseProductQuery(Astro.url.searchParams);
-
-const page = collection
-  ? await getProductPage({ limit, offset, categoryId: collection.id, order })
+const facetFilters = collection
+  ? { ...parseProductFacetFilters(Astro.url.searchParams), collectionIds: [] }
   : null;
 
-const pagination = page
-  ? getProductPagination({
-      offset: page.offset,
-      limit: page.limit,
-      count: page.count,
-      productCount: page.products.length,
-      countIsEstimated: page.countIsEstimated,
-    })
-  : null;
+const pool =
+  collection && facetFilters
+    ? await getProductPage({
+        limit: FILTER_FETCH_CAP,
+        offset: 0,
+        categoryId: collection.id,
+        order: isClientSideSort(order) ? "-created_at" : order,
+      })
+    : null;
 
-const pageHref = (nextOffset: number) => {
-  const nextParams = new URLSearchParams();
-  if (order) nextParams.set("order", order);
-  nextParams.set("limit", String(limit));
-  if (nextOffset > 0) nextParams.set("offset", String(nextOffset));
-  return `/collections/${collection?.handle ?? handle}?${nextParams.toString()}`;
-};
+const filtered =
+  pool && facetFilters ? applyProductFacetFilters(pool.products, facetFilters) : [];
+const sorted = sortProducts(filtered, order);
+const pageProducts = sorted.slice(offset, offset + limit);
+
+const pagination =
+  pool && facetFilters
+    ? getProductPagination({
+        offset,
+        limit,
+        count: sorted.length,
+        productCount: pageProducts.length,
+        countIsEstimated: false,
+      })
+    : null;
+
+const pageHref = (nextOffset: number) =>
+  buildListingHref(`/collections/${collection?.handle ?? handle}`, {
+    order,
+    limit,
+    offset: nextOffset,
+    facets: facetFilters ?? { inStockOnly: false, collectionIds: [], optionFilters: {} },
+  });
 ---
 
 {
-  !collection || !page || !pagination ? (
+  !collection || !pool || !pagination || !facetFilters ? (
     <NotFoundLayout
       title="Collection not found"
       message="Collection not found"
@@ -91,60 +118,40 @@ const pageHref = (nextOffset: number) => {
         {collection.description ? (
           <p class="mt-4 max-w-2xl text-zinc-600">{collection.description}</p>
         ) : null}
-
-        <form
-          method="get"
-          class="mt-8 flex flex-wrap items-end gap-3 rounded-lg border border-zinc-200 bg-zinc-50 p-5"
-        >
-          <div>
-            <label class="text-sm text-zinc-700" for="collection-product-order">
-              Sort by
-            </label>
-            <select
-              id="collection-product-order"
-              name="order"
-              class="mt-1 w-full rounded-md border border-zinc-300 bg-white px-3 py-2"
-            >
-              <option value="-created_at" selected={order === "-created_at"}>
-                Newest
-              </option>
-              <option value="created_at" selected={order === "created_at"}>
-                Oldest
-              </option>
-              <option value="title" selected={order === "title"}>
-                Title A–Z
-              </option>
-              <option value="-title" selected={order === "-title"}>
-                Title Z–A
-              </option>
-            </select>
-          </div>
-          <input type="hidden" name="limit" value={limit} />
-          <button type="submit" class="button">
-            Sort
-          </button>
-        </form>
       </section>
 
-      {page.products.length > 0 ? (
-        <Products
-          products={page.products}
-          eyebrow="Collection"
-          heading={collection.name}
+      <section class="container pb-4 lg:flex lg:items-start lg:gap-10">
+        <ProductFilters
+          basePath={`/collections/${collection.handle}`}
+          limit={limit}
+          order={order}
+          filters={facetFilters}
+          availability={deriveAvailabilityCounts(pool.products)}
+          price={derivePriceBounds(pool.products)}
+          options={deriveOptionFacets(pool.products)}
+          resultLabel={pagination.label}
         />
-      ) : (
-        <section class="container py-16">
-          <p class="text-center text-zinc-600">
-            No products in this collection yet.
-          </p>
-        </section>
-      )}
+
+        <div class="min-w-0 flex-1">
+          {pageProducts.length > 0 ? (
+            <Products
+              products={pageProducts}
+              eyebrow="Collection"
+              heading={collection.name}
+            />
+          ) : (
+            <p class="py-16 text-center text-zinc-600">
+              No products in this collection match these filters.
+            </p>
+          )}
+        </div>
+      </section>
 
       <ProductPaginationNav
         pagination={pagination}
         pageHref={pageHref}
-        previousOffset={Math.max(0, page.offset - page.limit)}
-        nextOffset={page.offset + page.limit}
+        previousOffset={Math.max(0, offset - limit)}
+        nextOffset={offset + limit}
       />
     </BaseLayout>
   )

@@ -7,59 +7,424 @@ export interface Props {
   images: z.infer<typeof ImageResult>[];
   title: string;
 }
-const { images, title } = Astro.props as Props;
+const { images: rawImages, title } = Astro.props as Props;
+// A product with no images at all still needs *something* to render (the
+// placeholder `ResponsiveImage` already draws for a `null` image) — treat
+// that as a single "slide" so the rest of this component's indexing logic
+// doesn't need a zero-images special case.
+const images = rawImages.length > 0 ? rawImages : [null];
+const imageUrls = images.map((image) => image?.url).filter(Boolean);
 ---
 
-<div class="grid gap-4 md:grid-cols-8 lg:gap-6">
-  <div class="md:order-2 md:col-span-6">
-    <ResponsiveImage
-      classList="overflow-hidden rounded-lg h-full object-cover"
-      loading="eager"
-      image={images[0]}
-      alt={title}
-      sizes={`
-          (min-width: 1540px) 475px,
-          (min-width: 1280px) 389px,
-          (min-width: 1040px) 304px,
-          (min-width: 780px) 720px,
-          (min-width: 680px) 592px,
-          calc(94.44vw - 31px)
-        `}
-    />
-  </div>
-  <div
-    class:list={[
-      "grid",
-      "grid-cols-4",
-      "gap-4",
-      "md:order-1",
-      "md:col-span-2",
-      "md:flex",
-      "md:flex-col",
-      "md:gap-6",
-      { "md:justify-between": images.length > 2 },
-    ]}
-  >
+<div class="pdp-gallery" data-pdp-gallery>
+  <!-- Desktop: full thumbnail rail (every image, not capped) + large main
+       image. Clicking a thumbnail swaps the main image; the active one is
+       highlighted via `aria-current`. -->
+  <div class="pdp-gallery__desktop">
     {
-      images.map((image, index) => {
-        if (index < 3) {
-          return (
-            <div class="overflow-hidden rounded-lg">
+      images.length > 1 && (
+        <div
+          class="pdp-gallery__thumbs"
+          role="listbox"
+          aria-label={`${title} — image thumbnails`}
+        >
+          {images.map((image, index) => (
+            <button
+              type="button"
+              class="pdp-gallery__thumb"
+              data-thumb-index={index}
+              role="option"
+              aria-current={index === 0 ? "true" : "false"}
+              aria-label={`Show image ${index + 1} of ${images.length}`}
+            >
               <ResponsiveImage
-                classList=""
-                loading="eager"
                 image={image}
-                alt={title}
-                sizes={`
-                  (min-width: 1540px) 475px,
-                  (min-width: 1280px) 389px,
-                  304px
-                `}
+                alt=""
+                loading="lazy"
+                sizes="72px"
               />
-            </div>
-          );
-        }
-      })
+            </button>
+          ))}
+        </div>
+      )
+    }
+    <button
+      type="button"
+      class="pdp-gallery__zoom-trigger"
+      data-open-dialog="pdp-lightbox"
+      aria-label={`Open a zoomed view of ${title}`}
+    >
+      <img
+        data-main-image
+        src={images[0]?.url}
+        alt={title}
+        loading="eager"
+        fetchpriority="high"
+        decoding="async"
+        class="pdp-gallery__main-image"
+      />
+    </button>
+  </div>
+
+  <!-- Mobile: swipeable carousel with dot position indicator. -->
+  <div class="pdp-gallery__mobile">
+    <div class="pdp-gallery__track" data-carousel-track>
+      {
+        images.map((image, index) => (
+          <div class="pdp-gallery__slide" data-slide-index={index}>
+            <button
+              type="button"
+              class="pdp-gallery__zoom-trigger"
+              data-open-dialog="pdp-lightbox"
+              data-slide-open-index={index}
+              aria-label={`Open a zoomed view of ${title}, image ${index + 1} of ${images.length}`}
+            >
+              <ResponsiveImage
+                image={image}
+                alt={index === 0 ? title : ""}
+                loading={index === 0 ? "eager" : "lazy"}
+                fetchpriority={index === 0 ? "high" : "auto"}
+                classList="pdp-gallery__slide-image"
+              />
+            </button>
+          </div>
+        ))
+      }
+    </div>
+    {
+      images.length > 1 && (
+        <div
+          class="pdp-gallery__dots"
+          role="tablist"
+          aria-label={`${title} — image ${1} of ${images.length}`}
+        >
+          {images.map((_, index) => (
+            <button
+              type="button"
+              class="pdp-gallery__dot"
+              data-dot-index={index}
+              role="tab"
+              aria-selected={index === 0 ? "true" : "false"}
+              aria-label={`Image ${index + 1} of ${images.length}`}
+            />
+          ))}
+        </div>
+      )
     }
   </div>
 </div>
+
+<dialog id="pdp-lightbox" class="pdp-lightbox" aria-label={`${title} — zoomed image`}>
+  <button type="button" class="pdp-lightbox__close" data-close-dialog>
+    <span class="sr-only">Close zoomed view</span>
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke-width="1.5"
+      stroke="currentColor"
+      class="h-6 w-6"
+      aria-hidden="true"
+    >
+      <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+    </svg>
+  </button>
+  {
+    images.length > 1 && (
+      <>
+        <button
+          type="button"
+          class="pdp-lightbox__nav pdp-lightbox__nav--prev"
+          data-lightbox-prev
+          aria-label="Previous image"
+        >
+          ‹
+        </button>
+        <button
+          type="button"
+          class="pdp-lightbox__nav pdp-lightbox__nav--next"
+          data-lightbox-next
+          aria-label="Next image"
+        >
+          ›
+        </button>
+      </>
+    )
+  }
+  <img data-lightbox-image alt={title} class="pdp-lightbox__image" />
+</dialog>
+
+<script define:vars={{ imageUrls }}>
+  (function initPdpGallery() {
+    const gallery = document.querySelector("[data-pdp-gallery]");
+    if (!gallery) return;
+
+    const mainImage = gallery.querySelector("[data-main-image]");
+    const thumbs = Array.from(gallery.querySelectorAll("[data-thumb-index]"));
+    const dots = Array.from(gallery.querySelectorAll("[data-dot-index]"));
+    const slides = Array.from(gallery.querySelectorAll("[data-slide-index]"));
+    const track = gallery.querySelector("[data-carousel-track]");
+    const lightbox = document.getElementById("pdp-lightbox");
+    const lightboxImage = lightbox
+      ? lightbox.querySelector("[data-lightbox-image]")
+      : null;
+
+    let currentIndex = 0;
+    // A variant's own image (see `ProductVariantPicker.svelte`'s
+    // `pdp:variant-image` event) overrides the plain index-based display
+    // until it's cleared (variant with no image selected again).
+    let variantOverrideUrl = null;
+
+    function displayedUrl() {
+      return variantOverrideUrl || imageUrls[currentIndex];
+    }
+
+    function render() {
+      const url = displayedUrl();
+      if (mainImage && url) mainImage.src = url;
+      if (lightboxImage && url) lightboxImage.src = url;
+      const activeIndex = variantOverrideUrl ? -1 : currentIndex;
+      thumbs.forEach((btn, index) => {
+        btn.setAttribute("aria-current", String(index === activeIndex));
+      });
+      dots.forEach((btn, index) => {
+        btn.setAttribute("aria-selected", String(index === activeIndex));
+      });
+    }
+
+    function goTo(index, options) {
+      if (index < 0 || index >= imageUrls.length) return;
+      currentIndex = index;
+      variantOverrideUrl = null;
+      render();
+      const scrollCarousel = !options || options.scrollCarousel !== false;
+      if (scrollCarousel && slides[index]) {
+        slides[index].scrollIntoView({
+          behavior: "smooth",
+          inline: "start",
+          block: "nearest",
+        });
+      }
+    }
+
+    thumbs.forEach((btn, index) => {
+      btn.addEventListener("click", () => goTo(index));
+    });
+    dots.forEach((btn, index) => {
+      btn.addEventListener("click", () => goTo(index));
+    });
+    gallery.querySelectorAll("[data-slide-open-index]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const index = Number(btn.getAttribute("data-slide-open-index"));
+        if (Number.isInteger(index)) goTo(index, { scrollCarousel: false });
+      });
+    });
+
+    if (lightbox) {
+      const prev = lightbox.querySelector("[data-lightbox-prev]");
+      const next = lightbox.querySelector("[data-lightbox-next]");
+      prev?.addEventListener("click", () => {
+        goTo((currentIndex - 1 + imageUrls.length) % imageUrls.length);
+      });
+      next?.addEventListener("click", () => {
+        goTo((currentIndex + 1) % imageUrls.length);
+      });
+    }
+
+    // Mobile swipe: an IntersectionObserver over each slide keeps the dot
+    // indicator and thumbnail state in sync with manual scrolling, since
+    // the carousel itself is plain CSS scroll-snap (no JS needed to swipe).
+    if (track && slides.length > 1 && "IntersectionObserver" in window) {
+      const observer = new IntersectionObserver(
+        (entries) => {
+          const mostVisible = entries
+            .filter((entry) => entry.isIntersecting)
+            .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+          if (!mostVisible) return;
+          const index = Number(
+            mostVisible.target.getAttribute("data-slide-index"),
+          );
+          if (Number.isInteger(index) && index !== currentIndex) {
+            currentIndex = index;
+            variantOverrideUrl = null;
+            render();
+          }
+        },
+        { root: track, threshold: [0.6] },
+      );
+      slides.forEach((slide) => observer.observe(slide));
+    }
+
+    window.addEventListener("pdp:variant-image", (event) => {
+      variantOverrideUrl = (event.detail && event.detail.url) || null;
+      render();
+    });
+
+    render();
+  })();
+</script>
+
+<style>
+  .pdp-gallery__desktop {
+    display: none;
+  }
+
+  @media (min-width: 768px) {
+    .pdp-gallery__desktop {
+      display: grid;
+      grid-template-columns: 5.5rem 1fr;
+      gap: 1rem;
+      align-items: start;
+    }
+
+    .pdp-gallery__mobile {
+      display: none;
+    }
+  }
+
+  .pdp-gallery__thumbs {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    max-height: 40rem;
+    overflow-y: auto;
+  }
+
+  .pdp-gallery__thumb {
+    display: block;
+    border-radius: var(--store-radius, 0.5rem);
+    overflow: hidden;
+    border: 2px solid transparent;
+    opacity: 0.7;
+    transition:
+      opacity 150ms ease,
+      border-color 150ms ease;
+  }
+
+  .pdp-gallery__thumb:hover,
+  .pdp-gallery__thumb:focus-visible {
+    opacity: 1;
+  }
+
+  .pdp-gallery__thumb[aria-current="true"] {
+    opacity: 1;
+    border-color: var(--store-highlight, #064e3b);
+  }
+
+  .pdp-gallery__zoom-trigger {
+    display: block;
+    width: 100%;
+    cursor: zoom-in;
+    border-radius: var(--store-radius, 0.5rem);
+    overflow: hidden;
+  }
+
+  .pdp-gallery__main-image {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 4 / 5;
+    object-fit: cover;
+  }
+
+  .pdp-gallery__mobile {
+    display: block;
+  }
+
+  .pdp-gallery__track {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    border-radius: var(--store-radius, 0.5rem);
+    scrollbar-width: none;
+  }
+
+  .pdp-gallery__track::-webkit-scrollbar {
+    display: none;
+  }
+
+  .pdp-gallery__slide {
+    flex: 0 0 100%;
+    scroll-snap-align: start;
+  }
+
+  .pdp-gallery__slide :global(.pdp-gallery__slide-image) {
+    width: 100%;
+    aspect-ratio: 4 / 5;
+    object-fit: cover;
+  }
+
+  .pdp-gallery__dots {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+  }
+
+  .pdp-gallery__dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 999px;
+    background: var(--store-line, #e7e5e4);
+  }
+
+  .pdp-gallery__dot[aria-selected="true"] {
+    background: var(--store-highlight, #064e3b);
+  }
+
+  .pdp-lightbox {
+    position: fixed;
+    inset: 0;
+    margin: auto;
+    width: min(96vw, 64rem);
+    height: min(92vh, 48rem);
+    max-width: 96vw;
+    max-height: 92vh;
+    border: 0;
+    padding: 0;
+    background: black;
+  }
+
+  .pdp-lightbox::backdrop {
+    background: rgb(0 0 0 / 80%);
+  }
+
+  .pdp-lightbox__image {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+  .pdp-lightbox__close {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    z-index: 1;
+    color: white;
+    background: rgb(0 0 0 / 40%);
+    border-radius: 999px;
+    padding: 0.5rem;
+  }
+
+  .pdp-lightbox__nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 1;
+    color: white;
+    background: rgb(0 0 0 / 40%);
+    border-radius: 999px;
+    width: 2.75rem;
+    height: 2.75rem;
+    font-size: 1.75rem;
+    line-height: 1;
+  }
+
+  .pdp-lightbox__nav--prev {
+    left: 0.75rem;
+  }
+
+  .pdp-lightbox__nav--next {
+    right: 0.75rem;
+  }
+</style>

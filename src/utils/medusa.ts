@@ -21,7 +21,7 @@ import { config } from "./config";
 // calculated prices (needs `region_id`), inventory and variant options.
 // `+` adds to the default field set, `*` expands a relation.
 const PRODUCT_FIELDS =
-  "*variants.calculated_price,+variants.inventory_quantity,+variants.allow_backorder,+variants.manage_inventory,*variants.options,+options,+images,+categories.id,+categories.name";
+  "*variants.calculated_price,+variants.inventory_quantity,+variants.allow_backorder,+variants.manage_inventory,+variants.metadata,*variants.options,+options,+images,+categories.id,+categories.name";
 
 // Cart line items don't include per-item totals by default, only the unit
 // price — request them explicitly. Shipping methods default to amount/option
@@ -34,6 +34,18 @@ const buildUrl = (path: string, params: Record<string, unknown> = {}) => {
 
   Object.entries(params).forEach(([key, value]) => {
     if (value === undefined || value === null || value === "") return;
+    // An array value (e.g. several `category_id`s for the "Collection"
+    // facet — see `product-filters.ts`) is sent as repeated same-name
+    // params, matching the `qs` query-string convention Medusa's API
+    // layer parses store-side (`category_id=a&category_id=b` -> `["a",
+    // "b"]`), never a single comma-joined value.
+    if (Array.isArray(value)) {
+      const nonEmpty = value.filter(
+        (item) => item !== undefined && item !== null && item !== "",
+      );
+      nonEmpty.forEach((item) => url.searchParams.append(key, String(item)));
+      return;
+    }
     url.searchParams.set(key, String(value));
   });
 
@@ -87,7 +99,11 @@ export interface ProductPageOptions {
   offset?: number;
   q?: string;
   collectionId?: string;
-  categoryId?: string;
+  // A single category (a `/collections/<handle>` page's own scoping) or
+  // several (the "Collection" facet on `/products` — see
+  // `product-filters.ts`). The Store API's `category_id` param accepts
+  // either shape and ORs across multiple values.
+  categoryId?: string | string[];
   order?: string;
 }
 
@@ -109,6 +125,26 @@ const trimmedParam = (value: string | undefined, maximumLength = 200) => {
   return trimmed ? trimmed.slice(0, maximumLength) : undefined;
 };
 
+const CATEGORY_ID_MAX_COUNT = 50;
+
+// Normalizes the single-or-several `categoryId` shape (see
+// `ProductPageOptions`) into what `buildUrl` expects, trimming/dropping
+// blanks and bounding the list so a malformed/huge `?collections=` query
+// param can't blow up the outgoing request.
+const trimmedCategoryIds = (
+  value: string | string[] | undefined,
+): string | string[] | undefined => {
+  if (value === undefined) return undefined;
+  if (typeof value === "string") return trimmedParam(value);
+
+  const ids = value
+    .map((id) => trimmedParam(id))
+    .filter((id): id is string => Boolean(id))
+    .slice(0, CATEGORY_ID_MAX_COUNT);
+
+  return ids.length > 0 ? ids : undefined;
+};
+
 // Get a bounded product page while retaining the configured region for all
 // storefront requests. The Store API returns count/offset/limit metadata that
 // is needed by the catalog route's pagination controls.
@@ -122,7 +158,7 @@ export const getProductPage = async (options: ProductPageOptions = {}) => {
       offset,
       q: trimmedParam(options.q),
       collection_id: trimmedParam(options.collectionId),
-      category_id: trimmedParam(options.categoryId),
+      category_id: trimmedCategoryIds(options.categoryId),
       order: trimmedParam(options.order, 80),
       region_id: config.medusaRegionId,
       fields: PRODUCT_FIELDS,
@@ -158,7 +194,11 @@ export const getProductByHandle = async (options: { handle: string }) => {
   return parsedProduct;
 };
 
-const COLLECTIONS_MAX_LIMIT = 100;
+// Exported so the mobile nav drawer (all collections, uncapped) and the
+// `/products` "Collection" filter facet can request the same effective
+// ceiling `getCollectionByHandle` already relies on, rather than guessing
+// at a second magic number.
+export const COLLECTIONS_MAX_LIMIT = 100;
 
 // `+metadata` (on top of the plain fields the old code requested) is what
 // makes `CategoryResult`'s transform able to resolve the merchant-facing

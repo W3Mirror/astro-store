@@ -1,43 +1,93 @@
 ---
-import { getProductPage } from "../../utils/medusa";
+import { getProductPage, getCollections, COLLECTIONS_MAX_LIMIT } from "../../utils/medusa";
 import { getProductPagination } from "../../utils/product-pagination";
 import { parseProductQuery } from "../../utils/product-query";
+import {
+  applyProductFacetFilters,
+  buildListingHref,
+  deriveAvailabilityCounts,
+  deriveOptionFacets,
+  derivePriceBounds,
+  FILTER_FETCH_CAP,
+  isClientSideSort,
+  parseProductFacetFilters,
+  sortProducts,
+} from "../../utils/product-filters";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import Products from "../../components/Products.astro";
+import ProductFilters from "../../components/ProductFilters.astro";
 import ProductPaginationNav from "../../components/ProductPaginationNav.astro";
 
 const params = Astro.url.searchParams;
-const { limit, offset, query, collectionId, categoryId, order } =
+const { limit, offset, query, order, collectionId, categoryId } =
   parseProductQuery(params);
+const facetFilters = parseProductFacetFilters(params);
+// Opaque legacy deep-link params (e.g. an old integration linking straight
+// at a `product_collection`/`product_category` id) — round-tripped through
+// every generated href, never exposed as a shopper-facing filter control
+// (see `buildListingHref`'s doc comment). Independent of, and additive
+// with, the shopper-facing "Collection" facet below.
+const stickyParams = { collection_id: collectionId, category_id: categoryId };
 
-const page = await getProductPage({
-  limit,
-  offset,
+// The whole listing (grid + facet sidebar) is served from one bounded pool
+// of candidate products — see `product-filters.ts`'s module doc for why
+// (Availability/Price/option-value facets can't be expressed as Store API
+// query params) and its documented limitation (a catalog bigger than
+// `FILTER_FETCH_CAP` only surfaces facets/results from its first page,
+// server-sorted). The "Collection" facet IS a real Store API param, so it's
+// applied here, server-side, before the pool is even fetched, alongside any
+// legacy `?category_id=` deep link.
+const scopedCategoryIds = [
+  ...(categoryId ? [categoryId] : []),
+  ...facetFilters.collectionIds,
+];
+const pool = await getProductPage({
+  limit: FILTER_FETCH_CAP,
+  offset: 0,
   q: query,
   collectionId,
-  categoryId,
-  order,
+  categoryId: scopedCategoryIds.length > 0 ? scopedCategoryIds : undefined,
+  // A price sort can't be requested from the Store API — fetch the pool in
+  // the default order and sort client-side (`sortProducts`) instead.
+  order: isClientSideSort(order) ? "-created_at" : order,
 });
+
+const collections = await getCollections({ limit: COLLECTIONS_MAX_LIMIT })
+  .then((page) =>
+    page.product_categories
+      .filter((c) => c !== null)
+      .map((c) => ({ id: c.id, name: c.name })),
+  )
+  .catch((error) => {
+    console.error(
+      "[products] Failed to load the collection list for the filter facet; showing none.",
+      error,
+    );
+    return [];
+  });
+
+const filtered = applyProductFacetFilters(pool.products, facetFilters);
+const sorted = sortProducts(filtered, order);
+const pageProducts = sorted.slice(offset, offset + limit);
 
 const pageTitle = query ? `Search results for “${query}”` : "All products";
 const pagination = getProductPagination({
-  offset: page.offset,
-  limit: page.limit,
-  count: page.count,
-  productCount: page.products.length,
-  countIsEstimated: page.countIsEstimated,
+  offset,
+  limit,
+  count: sorted.length,
+  productCount: pageProducts.length,
+  countIsEstimated: false,
 });
 
-const pageHref = (nextOffset: number) => {
-  const nextParams = new URLSearchParams();
-  if (query) nextParams.set("q", query);
-  if (collectionId) nextParams.set("collection_id", collectionId);
-  if (categoryId) nextParams.set("category_id", categoryId);
-  if (order) nextParams.set("order", order);
-  nextParams.set("limit", String(page.limit));
-  if (nextOffset > 0) nextParams.set("offset", String(nextOffset));
-  return `/products?${nextParams.toString()}`;
-};
+const pageHref = (nextOffset: number) =>
+  buildListingHref("/products", {
+    q: query,
+    order,
+    limit,
+    offset: nextOffset,
+    facets: facetFilters,
+    stickyParams,
+  });
 ---
 
 <BaseLayout
@@ -55,11 +105,8 @@ const pageHref = (nextOffset: number) => {
       </h1>
     </div>
 
-    <form
-      method="get"
-      class="mt-8 grid gap-4 rounded-lg border border-zinc-200 bg-zinc-50 p-5 md:grid-cols-[minmax(0,1fr)_auto]"
-    >
-      <div>
+    <form method="get" class="mt-8 flex flex-wrap items-end gap-3">
+      <div class="flex-1">
         <label class="text-sm font-medium text-zinc-700" for="product-search">
           Search products
         </label>
@@ -72,83 +119,59 @@ const pageHref = (nextOffset: number) => {
           class="mt-2 w-full rounded-md border border-zinc-300 bg-white px-3 py-2"
         />
       </div>
-      <div class="flex items-end gap-3">
-        <input type="hidden" name="limit" value={page.limit} />
-        <button type="submit" class="button">Search</button>
-        {
-          query && (
-            <a
-              href="/products"
-              class="rounded-lg border border-zinc-300 px-6 py-3 text-base font-medium"
-            >
-              Clear
-            </a>
-          )
-        }
-      </div>
-      <details class="md:col-span-2">
-        <summary class="cursor-pointer text-sm font-medium text-zinc-700">
-          Additional filters
-        </summary>
-        <div class="mt-4 grid gap-4 sm:grid-cols-3">
-          <div>
-            <label class="text-sm text-zinc-700" for="product-order">
-              Sort by
-            </label>
-            <select
-              id="product-order"
-              name="order"
-              class="mt-1 w-full rounded-md border border-zinc-300 bg-white px-3 py-2"
-            >
-              <option value="-created_at" selected={order === "-created_at"}>
-                Newest
-              </option>
-              <option value="created_at" selected={order === "created_at"}>
-                Oldest
-              </option>
-              <option value="title" selected={order === "title"}>
-                Title A–Z
-              </option>
-              <option value="-title" selected={order === "-title"}>
-                Title Z–A
-              </option>
-            </select>
-          </div>
-        </div>
-        {
-          collectionId && (
-            <input type="hidden" name="collection_id" value={collectionId} />
-          )
-        }
-        {
-          categoryId && (
-            <input type="hidden" name="category_id" value={categoryId} />
-          )
-        }
-      </details>
+      <input type="hidden" name="limit" value={limit} />
+      {collectionId && <input type="hidden" name="collection_id" value={collectionId} />}
+      {categoryId && <input type="hidden" name="category_id" value={categoryId} />}
+      <button type="submit" class="button">Search</button>
+      {
+        query && (
+          <a
+            href="/products"
+            class="rounded-lg border border-zinc-300 px-6 py-3 text-base font-medium"
+          >
+            Clear
+          </a>
+        )
+      }
     </form>
   </section>
 
-  {
-    page.products.length > 0 ? (
-      <Products
-        products={page.products}
-        eyebrow={query ? "Search" : "Catalog"}
-        heading={query ? `Results for “${query}”` : "All products"}
-      />
-    ) : (
-      <section class="container py-16">
-        <p class="text-center text-zinc-600">
-          No products matched these filters.
-        </p>
-      </section>
-    )
-  }
+  <section class="container pb-4 lg:flex lg:items-start lg:gap-10">
+    <ProductFilters
+      basePath="/products"
+      q={query}
+      limit={limit}
+      order={order}
+      filters={facetFilters}
+      availability={deriveAvailabilityCounts(pool.products)}
+      price={derivePriceBounds(pool.products)}
+      options={deriveOptionFacets(pool.products)}
+      collections={collections}
+      resultLabel={pagination.label}
+      stickyParams={stickyParams}
+    />
+
+    <div class="min-w-0 flex-1">
+      {
+        pageProducts.length > 0 ? (
+          <Products
+            products={pageProducts}
+            eyebrow={query ? "Search" : "Catalog"}
+            heading={query ? `Results for “${query}”` : "All products"}
+          />
+        ) : (
+          <p class="py-16 text-center text-zinc-600">
+            No products matched these filters.
+          </p>
+        )
+      }
+    </div>
+  </section>
 
   <ProductPaginationNav
     pagination={pagination}
     pageHref={pageHref}
-    previousOffset={Math.max(0, page.offset - page.limit)}
-    nextOffset={page.offset + page.limit}
+    previousOffset={Math.max(0, offset - limit)}
+    nextOffset={offset + limit}
   />
 </BaseLayout>

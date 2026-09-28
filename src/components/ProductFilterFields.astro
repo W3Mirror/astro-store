@@ -1,0 +1,209 @@
+---
+import type {
+  OptionFacet,
+  PriceBounds,
+  ProductFacetFilters,
+} from "../utils/product-filters";
+
+export interface Props {
+  // Distinct per rendering (desktop sidebar vs. mobile sheet) so the two
+  // copies of this form never collide on element `id`.
+  idPrefix: string;
+  q?: string;
+  limit: number;
+  order: string;
+  filters: ProductFacetFilters;
+  availability: { inStock: number; total: number };
+  price?: PriceBounds;
+  options: OptionFacet[];
+  collections?: { id: string; name: string }[];
+  // Opaque legacy `collection_id`/`category_id` deep-link params — see
+  // `buildListingHref`'s doc comment. Round-tripped as hidden inputs, never
+  // rendered as a visible label/control.
+  stickyParams?: Record<string, string | undefined>;
+}
+
+const {
+  idPrefix,
+  q,
+  limit,
+  order,
+  filters,
+  availability,
+  price,
+  options,
+  collections,
+  stickyParams,
+} = Astro.props as Props;
+---
+
+<form method="get" class="product-filters__form" data-auto-submit-filters>
+  {q && <input type="hidden" name="q" value={q} />}
+  <input type="hidden" name="limit" value={limit} />
+  {
+    Object.entries(stickyParams ?? {}).map(
+      ([key, value]) => value && <input type="hidden" name={key} value={value} />,
+    )
+  }
+
+  <div class="product-filters__group">
+    <label class="product-filters__checkbox">
+      <input type="checkbox" name="in_stock" value="1" checked={filters.inStockOnly} />
+      <span>In stock only ({availability.inStock})</span>
+    </label>
+  </div>
+
+  {
+    price && (
+      <fieldset class="product-filters__group">
+        <legend class="product-filters__legend">Price</legend>
+        <div class="product-filters__price-inputs">
+          <label>
+            <span class="sr-only">Minimum price</span>
+            <input
+              type="number"
+              name="price_min"
+              min="0"
+              step="1"
+              inputmode="numeric"
+              id={`${idPrefix}-price-min`}
+              placeholder={String(Math.floor(price.min))}
+              value={filters.priceMin ?? ""}
+              class="account-input"
+            />
+          </label>
+          <span aria-hidden="true">–</span>
+          <label>
+            <span class="sr-only">Maximum price</span>
+            <input
+              type="number"
+              name="price_max"
+              min="0"
+              step="1"
+              inputmode="numeric"
+              id={`${idPrefix}-price-max`}
+              placeholder={String(Math.ceil(price.max))}
+              value={filters.priceMax ?? ""}
+              class="account-input"
+            />
+          </label>
+        </div>
+      </fieldset>
+    )
+  }
+
+  {
+    collections && collections.length > 0 && (
+      <fieldset class="product-filters__group">
+        <legend class="product-filters__legend">Collection</legend>
+        {collections.map((collection) => (
+          <label class="product-filters__checkbox">
+            <input
+              type="checkbox"
+              name="collections"
+              value={collection.id}
+              checked={filters.collectionIds.includes(collection.id)}
+            />
+            <span>{collection.name}</span>
+          </label>
+        ))}
+      </fieldset>
+    )
+  }
+
+  {
+    options.map((axis) => (
+      <fieldset class="product-filters__group">
+        <legend class="product-filters__legend">{axis.title}</legend>
+        {axis.values.map((value) => (
+          <label class="product-filters__checkbox">
+            <input
+              type="checkbox"
+              name={`opt_${axis.axisKey}`}
+              value={value.value}
+              checked={(filters.optionFilters[axis.axisKey] ?? []).includes(
+                value.value,
+              )}
+            />
+            <span>
+              {value.value} ({value.count})
+            </span>
+          </label>
+        ))}
+      </fieldset>
+    ))
+  }
+
+  <div class="product-filters__group">
+    <label class="product-filters__legend" for={`${idPrefix}-sort`}>
+      Sort by
+    </label>
+    <select
+      id={`${idPrefix}-sort`}
+      name="order"
+      class="account-input"
+    >
+      <option value="-created_at" selected={order === "-created_at"}>
+        Newest
+      </option>
+      <option value="created_at" selected={order === "created_at"}>
+        Oldest
+      </option>
+      <option value="title" selected={order === "title"}>
+        Title A–Z
+      </option>
+      <option value="-title" selected={order === "-title"}>
+        Title Z–A
+      </option>
+      <option value="price-asc" selected={order === "price-asc"}>
+        Price: low to high
+      </option>
+      <option value="price-desc" selected={order === "price-desc"}>
+        Price: high to low
+      </option>
+    </select>
+  </div>
+
+  <div class="product-filters__actions">
+    <button type="submit" class="button w-full">Apply</button>
+  </div>
+</form>
+
+<style>
+  .product-filters__group {
+    margin-bottom: 1.5rem;
+  }
+
+  .product-filters__legend {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--store-ink, #1c1917);
+  }
+
+  .product-filters__checkbox {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0;
+    font-size: 0.875rem;
+  }
+
+  .product-filters__price-inputs {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .product-filters__price-inputs input {
+    width: 100%;
+  }
+
+  .product-filters__actions {
+    position: sticky;
+    bottom: 0;
+    padding-top: 0.5rem;
+    background: var(--store-canvas, #fff);
+  }
+</style>

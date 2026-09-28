@@ -1,0 +1,70 @@
+---
+// Tiny, framework-free wiring shared by every `<dialog>` on the site: the
+// mobile nav drawer, the mobile "Filter & Sort" sheet, the PDP size-chart
+// modal, and the PDP gallery lightbox. Using the native `<dialog>` element
+// (opened via `showModal()`) gets focus-trapping, Escape-to-close, and a
+// dismissible backdrop for free in every evergreen browser — no client
+// library needed (this template stays vanilla/Svelte-only, no new deps).
+//
+// Contract, by data attribute:
+//   - `[data-open-dialog="<id>"]` on a trigger opens `#<id>` via
+//     `showModal()` and sets `aria-expanded="true"` on itself.
+//   - `[data-close-dialog]` inside a `<dialog>` closes its nearest
+//     ancestor `<dialog>`.
+//   - Clicking directly on a `<dialog>` element (i.e. its own padding/
+//     backdrop area, not something inside it) closes it — the standard
+//     "click outside the content box" pattern for a `<dialog>`.
+//   - On close (Escape, backdrop click, or `[data-close-dialog]`), every
+//     trigger that opened it is set back to `aria-expanded="false"`.
+//
+// This template is server-rendered per navigation (no client router — see
+// `astro.config.mjs`), so every open dialog is naturally torn down and
+// closed on a route change; no extra wiring is needed for that.
+---
+
+<script>
+  const isDialog = (node: EventTarget | null): node is HTMLDialogElement =>
+    node instanceof HTMLDialogElement;
+
+  document.addEventListener("click", (event) => {
+    const target = event.target as Element | null;
+    if (!target) return;
+
+    const opener = target.closest<HTMLElement>("[data-open-dialog]");
+    if (opener) {
+      const id = opener.getAttribute("data-open-dialog");
+      const dialog = id ? document.getElementById(id) : null;
+      if (isDialog(dialog) && !dialog.open) {
+        dialog.showModal();
+        opener.setAttribute("aria-expanded", "true");
+      }
+      return;
+    }
+
+    const closer = target.closest<HTMLElement>("[data-close-dialog]");
+    if (closer) {
+      closer.closest("dialog")?.close();
+      return;
+    }
+
+    // A click landing directly on the <dialog> element itself (not on any
+    // element nested inside it) is a click on its backdrop/padding area.
+    if (isDialog(event.target) && event.target.open) {
+      event.target.close();
+    }
+  });
+
+  // The native `close` event never bubbles, but a capturing listener on
+  // `document` still observes it (capture happens on the way down to the
+  // target, before bubbling is even considered).
+  document.addEventListener(
+    "close",
+    (event) => {
+      if (!isDialog(event.target)) return;
+      document
+        .querySelectorAll(`[data-open-dialog="${event.target.id}"]`)
+        .forEach((el) => el.setAttribute("aria-expanded", "false"));
+    },
+    true,
+  );
+</script>
