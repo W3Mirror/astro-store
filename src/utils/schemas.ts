@@ -231,6 +231,9 @@ export const ProductResult = z
     // plain ISO timestamp, one of the Store API's own default product
     // fields (see `+created_at` in `PRODUCT_FIELDS`, `utils/medusa.ts`).
     created_at: z.string().nullable().optional(),
+    // Product-level metadata (requested via `+metadata` in `PRODUCT_FIELDS`).
+    // The PDP's "Fabric & Care" accordion reads `metadata.fabric_care`.
+    metadata: z.record(z.string(), z.unknown()).nullable().optional(),
   })
   .nullable();
 
