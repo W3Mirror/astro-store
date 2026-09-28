@@ -1,47 +1,222 @@
 ---
 import ResponsiveImage from "./ResponsiveImage.svelte";
+import { resolveHeroSettings, slideLabel } from "../utils/hero";
 
+// `heading`/`subheading`/`imageUrl`/`imageAlt` are the store's single hero
+// (the `hero_heading`/`hero_subheading`/`hero_image_url`/`hero_image_alt`
+// settings) — the one static slide whenever no `slides` are configured.
+// Every other prop is the raw per-environment hero setting from the
+// site-config overlay; `resolveHeroSettings` re-validates all of them (see
+// `utils/hero.ts`) before anything here renders.
 export interface Props {
   heading: string;
   subheading?: string;
   imageUrl?: string | null;
   imageAlt?: string | null;
+  layout?: string | null;
+  focal?: string | null;
+  height?: string | null;
+  eyebrow?: string | null;
+  slides?: unknown[] | null;
+  autoplaySeconds?: number | null;
 }
 
-const { heading, subheading, imageUrl, imageAlt } = Astro.props as Props;
+const props = Astro.props as Props;
+const hero = resolveHeroSettings(
+  {
+    heroLayout: props.layout,
+    heroFocal: props.focal,
+    heroHeight: props.height,
+    heroEyebrow: props.eyebrow,
+    heroSlides: props.slides,
+    heroAutoplaySeconds: props.autoplaySeconds,
+    heroHeading: props.heading,
+    heroSubheading: props.subheading,
+    heroImageUrl: props.imageUrl,
+    heroImageAlt: props.imageAlt,
+  },
+  { heading: props.heading, subheading: props.subheading ?? "" },
+);
+
+const { layout, focal, height, eyebrow, slides, autoplaySeconds } = hero;
+const total = slides.length;
+const isCarousel = total > 1;
+// The boxed layout with one slide is the hero every store rendered before
+// layouts/slides existed — kept byte-for-byte apart from the eyebrow, which
+// now comes only from `hero_eyebrow` (hidden when unset).
+const isClassicBoxed = layout === "boxed" && !isCarousel;
+const isOverlay = layout === "full_bleed_overlay";
+const single = slides[0];
+const slidesId = "store-hero-slides";
 ---
 
 {
-  heading && (
+  isClassicBoxed && single.heading && (
     <section class="store-hero border-b">
       <div class="store-hero__wash" aria-hidden="true" />
       <div class="store-hero__inner container py-16 sm:py-24">
-        {imageUrl && (
+        {single.imageUrl && (
           <div class="store-hero__image mb-8 overflow-hidden rounded-lg">
             <ResponsiveImage
-              image={{ url: imageUrl }}
-              alt={imageAlt || heading}
+              image={{ url: single.imageUrl }}
+              alt={single.imageAlt || single.heading}
               loading="eager"
               fetchpriority="high"
               sizes="100vw"
             />
           </div>
         )}
-        <p class="store-hero__eyebrow">The new collection</p>
+        {eyebrow && <p class="store-hero__eyebrow">{eyebrow}</p>}
         <div class="store-hero__copy">
           <h1 class="store-hero__heading text-4xl font-semibold tracking-tight sm:text-6xl">
-            {heading}
+            {single.heading}
           </h1>
-          {subheading && (
+          {single.subheading && (
             <p class="store-hero__subheading mt-5 max-w-2xl text-base sm:text-lg">
-              {subheading}
+              {single.subheading}
             </p>
           )}
-          <a class="store-hero__action" href="#featured-products">
-            Shop the collection
-          </a>
+          {single.ctaLabel && single.ctaHref && (
+            <a class="store-hero__action" href={single.ctaHref}>
+              {single.ctaLabel}
+            </a>
+          )}
         </div>
       </div>
     </section>
   )
 }
+
+{
+  !isClassicBoxed && (
+    <section
+      class:list={[
+        "store-hero-deck",
+        `store-hero-deck--${layout}`,
+        `store-hero-deck--focal-${focal}`,
+        `store-hero-deck--h-${height}`,
+        { "border-b": !isOverlay },
+      ]}
+      aria-roledescription={isCarousel ? "carousel" : undefined}
+      aria-label={isCarousel ? "Featured" : undefined}
+      data-hero-carousel={isCarousel ? "" : undefined}
+      data-autoplay-seconds={isCarousel ? String(autoplaySeconds) : undefined}
+    >
+      {!isOverlay && <div class="store-hero__wash" aria-hidden="true" />}
+      <div class:list={["store-hero-deck__frame", { "container py-16 sm:py-24": !isOverlay }]}>
+        <div
+          class="store-hero-deck__slides"
+          id={slidesId}
+          data-hero-live
+          aria-live={isCarousel ? (autoplaySeconds > 0 ? "off" : "polite") : undefined}
+        >
+          {slides.map((slide, index) => (
+            <div
+              class="store-hero-deck__slide"
+              data-hero-slide
+              data-active={index === 0 ? "" : undefined}
+              role={isCarousel ? "group" : undefined}
+              aria-roledescription={isCarousel ? "slide" : undefined}
+              aria-label={isCarousel ? slideLabel(index, total) : undefined}
+              aria-hidden={index === 0 ? undefined : "true"}
+              inert={index !== 0}
+            >
+              {slide.imageUrl && (
+                <div class="store-hero-deck__media">
+                  <img
+                    class="store-hero-deck__image"
+                    src={slide.imageUrl}
+                    alt={slide.imageAlt}
+                    loading={index === 0 ? "eager" : "lazy"}
+                    fetchpriority={index === 0 ? "high" : "auto"}
+                    decoding="async"
+                    sizes="100vw"
+                  />
+                </div>
+              )}
+              <div class="store-hero-deck__content">
+                <div class:list={["store-hero-deck__inner", { container: isOverlay }]}>
+                  <div class="store-hero-deck__copy">
+                    {eyebrow && <p class="store-hero__eyebrow store-hero-deck__eyebrow">{eyebrow}</p>}
+                    {index === 0 ? (
+                      <h1 class="store-hero-deck__heading">{slide.heading}</h1>
+                    ) : (
+                      <h2 class="store-hero-deck__heading">{slide.heading}</h2>
+                    )}
+                    {slide.subheading && (
+                      <p class="store-hero-deck__subheading">{slide.subheading}</p>
+                    )}
+                    {slide.ctaLabel && slide.ctaHref && (
+                      <a class="store-hero__action store-hero-deck__action" href={slide.ctaHref}>
+                        {slide.ctaLabel}
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+        {isCarousel && (
+          <div class="store-hero-deck__nav" data-hero-js hidden>
+            <div class:list={["store-hero-deck__nav-inner", { container: isOverlay }]}>
+              <div class="store-hero-deck__dots" role="group" aria-label="Choose a slide">
+                {slides.map((_, index) => (
+                  <button
+                    type="button"
+                    class="store-hero-deck__dot"
+                    data-hero-dot={index}
+                    aria-controls={slidesId}
+                    aria-label={`Show slide ${slideLabel(index, total)}`}
+                    aria-current={index === 0 ? "true" : undefined}
+                  />
+                ))}
+              </div>
+              <div class="store-hero-deck__controls">
+                {autoplaySeconds > 0 && (
+                  <button
+                    type="button"
+                    class="store-hero-deck__control"
+                    data-hero-rotation
+                    data-state="playing"
+                    aria-controls={slidesId}
+                    aria-label="Pause slideshow"
+                  >
+                    <svg class="store-hero-deck__icon-pause" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" /></svg>
+                    <svg class="store-hero-deck__icon-play" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  class="store-hero-deck__control store-hero-deck__arrow"
+                  data-hero-prev
+                  aria-controls={slidesId}
+                  aria-label="Previous slide"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 5l-7 7 7 7" /></svg>
+                </button>
+                <button
+                  type="button"
+                  class="store-hero-deck__control store-hero-deck__arrow"
+                  data-hero-next
+                  aria-controls={slidesId}
+                  aria-label="Next slide"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" /></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </section>
+  )
+}
+
+<script>
+  import { initHeroCarousel } from "../utils/hero-carousel";
+
+  document
+    .querySelectorAll<HTMLElement>("[data-hero-carousel]")
+    .forEach((root) => initHeroCarousel(root, window));
+</script>

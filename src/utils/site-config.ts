@@ -33,6 +33,16 @@ export interface SiteConfig {
   // to `true` (shown) — see `TestStoreBanner.astro`. Irrelevant on a LIVE
   // build, which never renders that banner regardless of this value.
   showTestBanner: boolean;
+  // Homepage hero settings, exactly as the overlay sent them (after
+  // `SiteConfigOverlayResult`'s parse). `null` when unset. Resolved and
+  // re-validated into the rendered hero by `utils/hero.ts`'s
+  // `resolveHeroSettings` — never rendered straight from here.
+  heroLayout: string | null;
+  heroFocal: string | null;
+  heroHeight: string | null;
+  heroEyebrow: string | null;
+  heroSlides: unknown[] | null;
+  heroAutoplaySeconds: number | null;
   // Typed THEME settings (colors, radius, fonts, header logo height,
   // announcement style) — see `utils/theme.ts`. Every field is `null` when
   // unset, meaning "use the template default" (never an empty string).
@@ -88,6 +98,12 @@ const envDefaults = (): SiteConfig => ({
   shippingText: null,
   returnsText: null,
   showTestBanner: true,
+  heroLayout: null,
+  heroFocal: null,
+  heroHeight: null,
+  heroEyebrow: null,
+  heroSlides: null,
+  heroAutoplaySeconds: null,
   theme: {
     accent: null,
     accentContrast: null,
@@ -152,6 +168,13 @@ const fetchSiteConfig = async (): Promise<SiteConfig> => {
       shippingText: overlay.shippingText || defaults.shippingText,
       returnsText: overlay.returnsText || defaults.returnsText,
       showTestBanner: overlay.showTestBanner ?? defaults.showTestBanner,
+      heroLayout: overlay.heroLayout || defaults.heroLayout,
+      heroFocal: overlay.heroFocal || defaults.heroFocal,
+      heroHeight: overlay.heroHeight || defaults.heroHeight,
+      heroEyebrow: overlay.heroEyebrow || defaults.heroEyebrow,
+      heroSlides: overlay.heroSlides ?? defaults.heroSlides,
+      heroAutoplaySeconds:
+        overlay.heroAutoplaySeconds ?? defaults.heroAutoplaySeconds,
       theme: {
         accent: overlay.theme?.accent ?? null,
         accentContrast: overlay.theme?.accentContrast ?? null,

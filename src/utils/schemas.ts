@@ -125,6 +125,18 @@ export const SiteConfigOverlayResult = z.object({
   // gates on `config.storeEnvironment === "test"` first, which is a
   // build-time env value this per-environment overlay never touches.
   showTestBanner: z.boolean().nullable().optional(),
+  // Homepage hero settings — see `utils/hero.ts`, which re-validates every
+  // one of these (enum membership, lengths, https image URLs, safe CTA
+  // hrefs) right before rendering. Each field `.catch(null)`es: a hero
+  // value this template doesn't understand degrades to that field's
+  // default (boxed layout, hidden eyebrow, the single static slide) instead
+  // of failing this whole parse and dropping every other site setting.
+  heroLayout: z.string().nullable().optional().catch(null),
+  heroFocal: z.string().nullable().optional().catch(null),
+  heroHeight: z.string().nullable().optional().catch(null),
+  heroEyebrow: z.string().nullable().optional().catch(null),
+  heroSlides: z.array(z.unknown()).nullable().optional().catch(null),
+  heroAutoplaySeconds: z.number().nullable().optional().catch(null),
   theme: ThemeOverlayResult.nullable().optional(),
   seo: z
     .object({

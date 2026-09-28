@@ -33,7 +33,8 @@
     "test:sticky-add-to-bag": "node --test scripts/sticky-add-to-bag.test.mjs",
     "test:product-badges": "node --test scripts/product-badges.test.mjs",
     "test:whatsapp-float-button": "node --test scripts/whatsapp-float-button.test.mjs",
-    "test:product-accordions": "node --test scripts/product-accordions.test.mjs"
+    "test:product-accordions": "node --test scripts/product-accordions.test.mjs",
+    "test:hero-settings": "node --test scripts/hero-settings.test.mjs"
   },
   "dependencies": {
     "@astrojs/cloudflare": "^12.6.13",
