@@ -26,6 +26,9 @@ export const configSchema = z.object({
     (v) => (v === "" ? undefined : v),
     z.enum(["live", "test"]).optional().default("live"),
   ),
+  // Store default country (lowercase ISO-2), from `.agents/w3dev/store.json`
+  // only (no env var). Empty when the contract leaves it unset.
+  defaultCountry: z.string().optional().default(""),
 });
 
 // Typed THEME settings (see `utils/theme.ts`'s module doc). Every color is a

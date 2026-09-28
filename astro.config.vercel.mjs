@@ -1,6 +1,7 @@
 import { defineConfig } from "astro/config";
 import vercel from "@astrojs/vercel";
 import tailwindcss from "@tailwindcss/vite";
+import { storeContract } from "./src/utils/store-contract-vite.mjs";
 
 // https://astro.build/config
 import svelte from "@astrojs/svelte";
@@ -26,6 +27,10 @@ export default defineConfig({
   integrations: [svelte()],
 
   vite: {
-    plugins: [tailwindcss()],
+    plugins: [
+      tailwindcss(),
+      // `.agents/w3dev/store.json` + STORE_ENVIRONMENT (see DEPLOY.md).
+      storeContract({ root: new URL(".", import.meta.url) }),
+    ],
   },
 });

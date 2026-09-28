@@ -10,7 +10,7 @@
     "build:cf": "astro build",
     "build:vercel": "astro build --config astro.config.vercel.mjs",
     "preview": "wrangler dev",
-    "preview:dev": "astro dev --host --port 3000",
+    "preview:dev": "astro dev --host --port ${PORT:-3000}",
     "deploy": "wrangler deploy",
     "astro": "astro",
     "typecheck": "tsc --noEmit",
@@ -36,7 +36,8 @@
     "test:product-accordions": "node --test scripts/product-accordions.test.mjs",
     "test:hero-settings": "node --test scripts/hero-settings.test.mjs",
     "test:preview-mode": "node --test scripts/preview-mode.test.mjs",
-    "test:unlisted-products": "node --test scripts/unlisted-products.test.mjs"
+    "test:unlisted-products": "node --test scripts/unlisted-products.test.mjs",
+    "test:store-contract": "node --test scripts/store-contract.test.mjs"
   },
   "dependencies": {
     "@astrojs/cloudflare": "^12.6.13",

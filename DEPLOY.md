@@ -9,10 +9,58 @@ via `@astrojs/vercel`) also exists — see "Vercel build target" below. It
 reuses the same env contract; everything in this doc about `PUBLIC_*`
 variables being build-time-only applies to it too.
 
+## Store contract (`.agents/w3dev/store.json`)
+
+Every store repo carries `.agents/w3dev/store.json`, written by the w3dev
+platform (not by hand, and not editable by the platform's code tools — see
+`.agents/w3dev/README.md`). It holds the store's **public** identity and
+the uniform scripts the platform runs:
+
+```json
+{
+  "version": 1,
+  "scripts": { "build": "build:vercel", "preview": "preview:dev" },
+  "output": ".vercel/output",
+  "features": { "siteConfig": true, "testSite": true },
+  "medusa": { "backendUrl": "", "publishableKey": "", "regionId": "", "defaultCountry": "" },
+  "store": { "name": "" },
+  "siteConfigUrl": ""
+}
+```
+
+Each value resolves (`src/utils/store-contract.js`, used by
+`src/utils/config.ts`) as:
+
+1. **env var**, when set to a non-empty string — the existing names below
+   (`PUBLIC_MEDUSA_BACKEND_URL`, `PUBLIC_MEDUSA_PUBLISHABLE_KEY`,
+   `PUBLIC_MEDUSA_REGION_ID`, `PUBLIC_STORE_NAME`,
+   `PUBLIC_SITE_CONFIG_URL`). A build that injects these behaves exactly
+   as before;
+2. else the **store.json** value, when non-empty (`""` means unset);
+3. else the **existing default** (`configSchema` in `src/utils/schemas.ts`).
+
+`medusa.defaultCountry` has no env var; it is exposed as
+`config.defaultCountry` (lowercase ISO-2, `""` when unset).
+
+store.json is imported statically, so it is bundled at build time (SSR and
+client code alike) — editing it needs a rebuild/dev-server restart. Both
+astro configs install the `storeContract` Vite plugin
+(`src/utils/store-contract-vite.mjs`), which validates the file before the
+build or dev server starts: an unknown `version`, a non-http(s) URL, a key
+that isn't `pk_…`, a region that isn't `reg_…`, or a country that isn't a
+lowercase 2-letter code fails the build with the offending field named.
+
+**The environment (test vs live) is never in store.json.** It is env only:
+`STORE_ENVIRONMENT` (`live` | `test`, preferred; read from the process env
+or `.env*` by the Vite plugin and inlined as a compile-time constant), then
+the existing `PUBLIC_STORE_ENVIRONMENT` (below) when `STORE_ENVIRONMENT` is
+unset or empty. Any other `STORE_ENVIRONMENT` value fails the build.
+
 ## Env contract
 
-All Medusa config lives in three `PUBLIC_`-prefixed variables (see
-`.env.example`):
+The Medusa config can come from three `PUBLIC_`-prefixed variables (see
+`.env.example`); when one is unset or empty, the store contract's value is
+used instead (see above):
 
 | Variable                        | Example                       | Notes                                                                                   |
 | ------------------------------- | ----------------------------- | --------------------------------------------------------------------------------------- |
@@ -24,6 +72,7 @@ Optional flag, same build-time contract:
 
 | Variable                   | Example | Notes                                                                                                                                                                                              |
 | --------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `STORE_ENVIRONMENT`        | `test`  | Preferred name for the flag below (`live` or `test`). Wins over `PUBLIC_STORE_ENVIRONMENT` when non-empty. |
 | `PUBLIC_STORE_ENVIRONMENT` | `test`  | Set to `test` to build this deployment as the test twin: visible "Test store — orders aren't real" banner, `X-Robots-Tag: noindex, nofollow` on every response, and a fully disallowing `robots.txt`. Unset (or anything other than `test`) is the live build — unchanged. |
 
 **These are build-time values, not runtime ones.** `src/utils/config.ts`
@@ -53,7 +102,7 @@ when `astro build` runs — they are not read from `wrangler.jsonc` `vars` or
 | Script                | What it does                                                                                                                                                     |
 | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `bun run dev`         | `astro dev` — local dev server, Node runtime.                                                                                                                    |
-| `bun run preview:dev` | Same as `dev`; plain `astro dev --host --port 3000`, no Cloudflare runtime emulation. Used by the sandbox-preview flow below.                                    |
+| `bun run preview:dev` | Same as `dev`; plain `astro dev --host --port ${PORT:-3000}` (listens on `$PORT`, default 3000), no Cloudflare runtime emulation. Used by the sandbox-preview flow below. |
 | `bun run build`       | `astro build` — same as `build:cf` today; kept for parity with the Astro convention.                                                                             |
 | `bun run build:cf`    | `astro build` targeting the Cloudflare adapter (`output: "server"`, `adapter: cloudflare()`). Produces `dist/_worker.js/index.js` + static assets under `dist/`. |
 | `bun run preview`     | `wrangler dev` — runs the built Worker against local `workerd`, with `platformProxy` emulating bindings (`ASSETS`, KV). Run `build:cf` first.                    |
@@ -83,8 +132,10 @@ in Vercel's Node serverless functions. The allow-listed overlay also accepts
 values resolve to `minimal`, so older store configs remain compatible.
 
 For a store's **test twin**, the publish pipeline runs this same
-`build:vercel` command with `PUBLIC_STORE_ENVIRONMENT=test` added to that
-build's env — and only that build's env; the live build must never set it.
+`build:vercel` command with `PUBLIC_STORE_ENVIRONMENT=test` (or the
+preferred `STORE_ENVIRONMENT=test`) added to that build's env — and only that
+build's env; the live build must never set it (or sets
+`STORE_ENVIRONMENT=live`).
 That flips on the test-store banner, forces noindex on every response
 (`src/middleware.ts` sets `X-Robots-Tag`; `BaseLayout.astro` forces the
 `<meta name="robots">` tag; `src/pages/robots.txt.ts` disallows everything),

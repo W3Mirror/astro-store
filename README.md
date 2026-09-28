@@ -14,6 +14,10 @@ Tailwind UI free components are used for the design.
 
 ## Medusa Configuration Guide
 
+Config comes from env vars (below) or, when a var is unset, from the
+platform-written store contract `.agents/w3dev/store.json` — see
+"Store contract" in `DEPLOY.md`.
+
 - Create or use an existing [Medusa](https://medusajs.com) backend.
 - In the Medusa Admin, go to Settings → API Key Management and create (or copy) a publishable API key, then copy it to `PUBLIC_MEDUSA_PUBLISHABLE_KEY`.
 - Make sure the publishable key is associated with a sales channel that has products.

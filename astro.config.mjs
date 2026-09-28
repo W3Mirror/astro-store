@@ -1,6 +1,7 @@
 import { defineConfig } from "astro/config";
 import cloudflare from "@astrojs/cloudflare";
 import tailwindcss from "@tailwindcss/vite";
+import { storeContract } from "./src/utils/store-contract-vite.mjs";
 
 // https://astro.build/config
 import svelte from "@astrojs/svelte";
@@ -18,7 +19,11 @@ export default defineConfig({
   integrations: [svelte()],
 
   vite: {
-    plugins: [tailwindcss()],
+    plugins: [
+      tailwindcss(),
+      // `.agents/w3dev/store.json` + STORE_ENVIRONMENT (see DEPLOY.md).
+      storeContract({ root: new URL(".", import.meta.url) }),
+    ],
     server: {
       // Vercel Sandbox previews are reached through a dynamic
       // `sb-<id>.vercel.run` domain proxied to the dev server's port, and
