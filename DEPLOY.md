@@ -22,7 +22,7 @@ the uniform scripts the platform runs:
   "scripts": { "build": "build:vercel", "preview": "preview:dev" },
   "output": ".vercel/output",
   "features": { "siteConfig": true, "testSite": true },
-  "medusa": { "backendUrl": "", "publishableKey": "", "regionId": "", "defaultCountry": "" },
+  "medusa": { "backendUrl": "", "publishableKey": "", "testPublishableKey": "", "regionId": "", "defaultCountry": "" },
   "store": { "name": "" },
   "siteConfigUrl": ""
 }
@@ -42,13 +42,23 @@ Each value resolves (`src/utils/store-contract.js`, used by
 `medusa.defaultCountry` has no env var; it is exposed as
 `config.defaultCountry` (lowercase ISO-2, `""` when unset).
 
+`medusa.testPublishableKey` is the store's **TEST checkout** publishable
+key (`pk_…`, scoped to the store's TEST sales channel; written by the
+platform once TEST checkout is set up). It is the only environment-dependent
+value: when the resolved environment (below) is `test`, the publishable key
+resolves as `PUBLIC_MEDUSA_PUBLISHABLE_KEY` (when non-empty) →
+`medusa.testPublishableKey` (when non-empty) → `medusa.publishableKey`. A
+LIVE build never reads it, and an empty/absent value leaves TEST builds on
+`medusa.publishableKey` exactly as before.
+
 store.json is imported statically, so it is bundled at build time (SSR and
 client code alike) — editing it needs a rebuild/dev-server restart. Both
 astro configs install the `storeContract` Vite plugin
 (`src/utils/store-contract-vite.mjs`), which validates the file before the
 build or dev server starts: an unknown `version`, a non-http(s) URL, a key
-that isn't `pk_…`, a region that isn't `reg_…`, or a country that isn't a
-lowercase 2-letter code fails the build with the offending field named.
+(`publishableKey` or `testPublishableKey`) that isn't `pk_…`, a region
+that isn't `reg_…`, or a country that isn't a lowercase 2-letter code fails
+the build with the offending field named.
 
 **The environment (test vs live) is never in store.json.** It is env only:
 `STORE_ENVIRONMENT` (`live` | `test`, preferred; read from the process env

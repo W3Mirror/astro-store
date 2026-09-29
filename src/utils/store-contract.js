@@ -17,6 +17,12 @@
 //
 // The environment (test vs live) is NOT part of store.json. It stays env
 // only: `STORE_ENVIRONMENT` (preferred) → `PUBLIC_STORE_ENVIRONMENT`.
+//
+// The one environment-dependent value: `medusa.testPublishableKey`, the
+// store's TEST checkout key (`pk_…`, TEST sales channel). A TEST build
+// (resolved environment `test`) with no `PUBLIC_MEDUSA_PUBLISHABLE_KEY`
+// env uses it instead of `medusa.publishableKey`; empty = unset = the
+// TEST build keeps using `medusa.publishableKey` (the LIVE channel).
 
 export const STORE_CONTRACT_PATH = ".agents/w3dev/store.json";
 export const STORE_CONTRACT_VERSION = 1;
@@ -25,12 +31,15 @@ export const STORE_CONTRACT_VERSION = 1;
  * @typedef {{
  *   backendUrl?: string,
  *   publishableKey?: string,
+ *   testPublishableKey?: string,
  *   regionId?: string,
  *   defaultCountry?: string,
  *   storeName?: string,
  *   siteConfigUrl?: string,
  * }} StoreContractValues
  */
+
+const PUBLISHABLE_KEY = /^pk_[A-Za-z0-9_]+$/;
 
 /** @param {unknown} v @returns {v is Record<string, unknown>} */
 const isObject = (v) =>
@@ -128,8 +137,14 @@ export function parseStoreContract(raw) {
     backendUrl: backendUrl?.replace(/\/+$/, ""),
     publishableKey: matching(
       optionalString(medusa, "publishableKey", "medusa.publishableKey"),
-      /^pk_[A-Za-z0-9_]+$/,
+      PUBLISHABLE_KEY,
       "medusa.publishableKey",
+      "a Medusa publishable key (pk_...)",
+    ),
+    testPublishableKey: matching(
+      optionalString(medusa, "testPublishableKey", "medusa.testPublishableKey"),
+      PUBLISHABLE_KEY,
+      "medusa.testPublishableKey",
       "a Medusa publishable key (pk_...)",
     ),
     regionId: matching(
@@ -202,6 +217,13 @@ export function resolveStoreEnvironment(env) {
  * @param {StoreContractValues} contract
  */
 export function resolveStoreInputs(env, contract) {
+  const storeEnvironment = resolveStoreEnvironment(env);
+  // A TEST build takes the TEST checkout key from the contract when it has
+  // one; the env var still wins over either (step 1 of the resolution).
+  const contractPublishableKey =
+    storeEnvironment === "test" && contract.testPublishableKey
+      ? contract.testPublishableKey
+      : contract.publishableKey;
   return {
     medusaBackendUrl: pickValue(
       env.PUBLIC_MEDUSA_BACKEND_URL,
@@ -209,7 +231,7 @@ export function resolveStoreInputs(env, contract) {
     ),
     medusaPublishableKey: pickValue(
       env.PUBLIC_MEDUSA_PUBLISHABLE_KEY,
-      contract.publishableKey,
+      contractPublishableKey,
     ),
     medusaRegionId: pickValue(env.PUBLIC_MEDUSA_REGION_ID, contract.regionId),
     storeName: pickValue(env.PUBLIC_STORE_NAME, contract.storeName),
@@ -218,6 +240,6 @@ export function resolveStoreInputs(env, contract) {
       contract.siteConfigUrl,
     ),
     defaultCountry: contract.defaultCountry,
-    storeEnvironment: resolveStoreEnvironment(env),
+    storeEnvironment,
   };
 }

@@ -14,6 +14,7 @@ It holds the store's public identity and how the platform builds it:
 | `output` | Build Output API v3 directory produced by `scripts.build`. |
 | `features.siteConfig` / `features.testSite` | Whether the storefront reads the platform site config and supports a test twin. |
 | `medusa.*` | Public Medusa identity: backend URL, publishable key (`pk_…`), region id (`reg_…`), default country (ISO-2). |
+| `medusa.testPublishableKey` | TEST checkout publishable key (`pk_…`); used instead of `publishableKey` only when `STORE_ENVIRONMENT` is `test`. Empty = TEST builds use `publishableKey`. |
 | `store.name` | Store name shown in the header, titles and footer. |
 | `siteConfigUrl` | Per-store public site-config endpoint. |
 

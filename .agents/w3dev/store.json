@@ -12,6 +12,7 @@
   "medusa": {
     "backendUrl": "",
     "publishableKey": "",
+    "testPublishableKey": "",
     "regionId": "",
     "defaultCountry": ""
   },

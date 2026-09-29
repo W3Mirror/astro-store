@@ -28,6 +28,7 @@ const EMPTY = {
   medusa: {
     backendUrl: "",
     publishableKey: "",
+    testPublishableKey: "",
     regionId: "",
     defaultCountry: "",
   },
@@ -40,6 +41,7 @@ const FILLED = {
   medusa: {
     backendUrl: "https://json-backend.example/",
     publishableKey: "pk_json123",
+    testPublishableKey: "pk_jsontest789",
     regionId: "reg_json123",
     defaultCountry: "in",
   },
@@ -81,6 +83,7 @@ test("empty store.json values parse as unset", () => {
   assert.deepEqual(parseStoreContract(EMPTY), {
     backendUrl: undefined,
     publishableKey: undefined,
+    testPublishableKey: undefined,
     regionId: undefined,
     defaultCountry: undefined,
     storeName: undefined,
@@ -92,6 +95,7 @@ test("filled store.json parses (trailing slash trimmed off the backend URL)", ()
   assert.deepEqual(parseStoreContract(FILLED), {
     backendUrl: "https://json-backend.example",
     publishableKey: "pk_json123",
+    testPublishableKey: "pk_jsontest789",
     regionId: "reg_json123",
     defaultCountry: "in",
     storeName: "Json Store",
@@ -117,6 +121,14 @@ test("malformed store.json values fail fast with the field name", () => {
   bad(
     { medusa: { ...FILLED.medusa, publishableKey: "sk_secret" } },
     "medusa.publishableKey",
+  );
+  bad(
+    { medusa: { ...FILLED.medusa, testPublishableKey: "sk_secret" } },
+    "medusa.testPublishableKey",
+  );
+  bad(
+    { medusa: { ...FILLED.medusa, testPublishableKey: 5 } },
+    "medusa.testPublishableKey",
   );
   bad(
     { medusa: { ...FILLED.medusa, regionId: "region-1" } },
@@ -175,6 +187,60 @@ test("env unset → store.json values are used", () => {
   assert.equal(inputs.siteConfigUrl, FILLED.siteConfigUrl);
   assert.equal(inputs.defaultCountry, "in");
   assert.equal(inputs.storeEnvironment, undefined);
+});
+
+test("TEST builds use medusa.testPublishableKey when set", () => {
+  const contract = parseStoreContract(FILLED);
+  for (const env of [
+    { STORE_ENVIRONMENT: "test" },
+    { PUBLIC_STORE_ENVIRONMENT: "test" },
+    { STORE_ENVIRONMENT: "", PUBLIC_STORE_ENVIRONMENT: "test" },
+  ]) {
+    const inputs = resolveStoreInputs(env, contract);
+    assert.equal(inputs.medusaPublishableKey, "pk_jsontest789");
+    assert.equal(inputs.storeEnvironment, "test");
+  }
+  // LIVE (explicit or unset) never takes the TEST key.
+  for (const env of [
+    {},
+    { STORE_ENVIRONMENT: "live" },
+    { STORE_ENVIRONMENT: "live", PUBLIC_STORE_ENVIRONMENT: "test" },
+  ]) {
+    assert.equal(
+      resolveStoreInputs(env, contract).medusaPublishableKey,
+      "pk_json123",
+    );
+  }
+});
+
+test("the publishable-key env var wins over the TEST key", () => {
+  const inputs = resolveStoreInputs(
+    { STORE_ENVIRONMENT: "test", PUBLIC_MEDUSA_PUBLISHABLE_KEY: "pk_env456" },
+    parseStoreContract(FILLED),
+  );
+  assert.equal(inputs.medusaPublishableKey, "pk_env456");
+});
+
+test("a TEST build without medusa.testPublishableKey keeps the LIVE key", () => {
+  const contract = parseStoreContract({
+    ...FILLED,
+    medusa: { ...FILLED.medusa, testPublishableKey: "" },
+  });
+  assert.equal(contract.testPublishableKey, undefined);
+  assert.equal(
+    resolveStoreInputs({ STORE_ENVIRONMENT: "test" }, contract)
+      .medusaPublishableKey,
+    "pk_json123",
+  );
+  // An older store.json without the key at all parses the same way.
+  const { testPublishableKey: _omit, ...legacyMedusa } = FILLED.medusa;
+  const legacy = parseStoreContract({ ...FILLED, medusa: legacyMedusa });
+  assert.equal(legacy.testPublishableKey, undefined);
+  assert.equal(
+    resolveStoreInputs({ STORE_ENVIRONMENT: "test" }, legacy)
+      .medusaPublishableKey,
+    "pk_json123",
+  );
 });
 
 test("env unset + empty store.json falls through to the schema defaults", () => {
